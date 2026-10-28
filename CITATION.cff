@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "Please cite this repository and the EXIOBASE data source when using the code."
+type: software
+title: "Global carbon, employment and wages: model and analysis code"
+authors:
+  - name: "ScarfQian"
+url: "https://github.com/ScarfQian/global-carbon-employment-wages"
+repository-code: "https://github.com/ScarfQian/global-carbon-employment-wages"
+license: MIT
