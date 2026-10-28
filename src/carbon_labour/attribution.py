@@ -190,11 +190,3 @@ def write_outputs(coverage: pd.DataFrame, robustness: pd.DataFrame, summary: pd.
     print(f"保存: {csv3 / 'skill_carbon_attribution_robustness.csv'}")
     print(f"保存: {supp / 'skill_carbon_attribution_robustness.csv'}")
     print(f"保存: {supp / 'skill_carbon_attribution_robustness_summary.csv'}")
-
-
-
-
-
-
-
-

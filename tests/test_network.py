@@ -385,4 +385,3 @@ def test_build_country_sector_transfer_tables_outputs_four_metric_tables() -> No
     assert not result["employment"].empty
     assert not result["wage"].empty
     assert not result["hours"].empty
-

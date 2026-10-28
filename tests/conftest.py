@@ -78,4 +78,3 @@ def fake_footprint():
         hours={"data": hours, "categories": hours_categories},
         wage={"data": wage, "categories": wage_categories},
     )
-

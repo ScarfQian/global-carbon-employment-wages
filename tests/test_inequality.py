@@ -54,4 +54,3 @@ def test_eq9_trace_identity(inequality_module):
     rebuilt = float(result.trace["Eq9_Term"].sum() - 1.0)
     assert np.isclose(rebuilt, result.raw_value)
     assert np.isclose(np.clip(rebuilt, 0.0, 1.0), result.value)
-

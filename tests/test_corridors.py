@@ -174,4 +174,3 @@ def test_corridor_scale_weighted_scores_and_summaries_are_available() -> None:
     assert "summary_by_type" in summaries
     assert not summaries["summary_by_type"].empty
     assert audit["Passed"].all()
-

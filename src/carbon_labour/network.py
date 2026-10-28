@@ -791,31 +791,31 @@ class NetworkEngine:
     def analyze_transmission(self, top_k: int = 20) -> Dict:
         """
         分析隐含碳/就业/工资/工时传导路径。
-    
+
         Args:
             top_k: 返回前K条最重要路径
-    
+
         Returns:
             Dict: 传导分析结果
         """
         print("\n" + "=" * 70)
         print("步骤5: 分析隐含碳/就业/工资/工时传导")
         print("=" * 70)
-    
+
         if self.L is None or self.Z is None or self.co2_emissions is None:
             print("  ✗ 缺少 L / Z / CO2 数据")
             return {}
         if not self.regions or not self.sectors:
             print("  ✗ 缺少国家或部门维度信息")
             return {}
-    
+
         results = {}
         l_values = self.L.values if hasattr(self.L, "values") else np.asarray(self.L, dtype=float)
         z_values = self.Z.values if hasattr(self.Z, "values") else np.asarray(self.Z, dtype=float)
         n_regions = len(self.regions)
         n_sectors = len(self.sectors)
         total_dim = n_regions * n_sectors
-    
+
         carbon_footprint = np.asarray(self.co2_emissions, dtype=float).reshape(-1) @ l_values
         employment_total = self._aggregate_extension_total(self.employment, total_dim)
         wage_total = self._aggregate_extension_total(self.wage, total_dim)
@@ -823,7 +823,7 @@ class NetworkEngine:
         employment_footprint = employment_total @ l_values
         wage_footprint = wage_total @ l_values
         hours_footprint = hours_total @ l_values
-    
+
         total_employment_coeff = np.clip(employment_total, 0.0, None)
         skill_share_map = {}
         for skill, values in (self.employment or {}).items():
@@ -835,7 +835,7 @@ class NetworkEngine:
                 where=total_employment_coeff > 0.0,
             )
             skill_share_map[skill] = share
-    
+
         skill_wage_footprint_map = {
             skill: np.asarray(wage_vector, dtype=float).reshape(-1) @ l_values
             for skill, wage_vector in (self.wage or {}).items()
@@ -852,7 +852,7 @@ class NetworkEngine:
             key: np.asarray(values, dtype=float).reshape(-1) @ l_values
             for key, values in (self.hours_skill_gender or {}).items()
         }
-    
+
         print("  计算国家间隐含转移矩阵...")
         carbon_transfer = np.zeros((n_regions, n_regions), dtype=float)
         employment_transfer = np.zeros((n_regions, n_regions), dtype=float)
@@ -882,7 +882,7 @@ class NetworkEngine:
             key: np.zeros((n_regions, n_regions), dtype=float)
             for key in (self.hours_skill_gender or {}).keys()
         }
-    
+
         for i in range(n_regions):
             start_i = i * n_sectors
             end_i = (i + 1) * n_sectors
@@ -890,7 +890,7 @@ class NetworkEngine:
             employment_block = employment_footprint[start_i:end_i].reshape(-1, 1)
             wage_block = wage_footprint[start_i:end_i].reshape(-1, 1)
             hours_block = hours_footprint[start_i:end_i].reshape(-1, 1)
-    
+
             skill_share_blocks = {
                 skill: share_vector[start_i:end_i].reshape(-1, 1)
                 for skill, share_vector in skill_share_map.items()
@@ -911,7 +911,7 @@ class NetworkEngine:
                 key: footprint[start_i:end_i].reshape(-1, 1)
                 for key, footprint in hours_skill_gender_footprint_map.items()
             }
-    
+
             for j in range(n_regions):
                 if i == j:
                     continue
@@ -922,7 +922,7 @@ class NetworkEngine:
                 employment_transfer[i, j] = float((employment_block * z_block).sum())
                 wage_transfer[i, j] = float((wage_block * z_block).sum())
                 hours_transfer[i, j] = float((hours_block * z_block).sum())
-    
+
                 for skill, share_block in skill_share_blocks.items():
                     skill_carbon_transfer[skill][i, j] = float((carbon_block * share_block * z_block).sum())
                     skill_employment_transfer[skill][i, j] = float((employment_block * share_block * z_block).sum())
@@ -934,12 +934,12 @@ class NetworkEngine:
                     employment_skill_gender_transfer[key][i, j] = float((pair_block * z_block).sum())
                 for key, pair_block in hours_skill_gender_blocks.items():
                     hours_skill_gender_transfer[key][i, j] = float((pair_block * z_block).sum())
-    
+
         results["carbon_transfer_matrix"] = carbon_transfer
         results["employment_transfer_matrix"] = employment_transfer
         results["wage_transfer_matrix"] = wage_transfer
         results["hours_transfer_matrix"] = hours_transfer
-    
+
         carbon_summary = self._build_transfer_summary(carbon_transfer, "Carbon")
         employment_summary = self._build_transfer_summary(employment_transfer, "Employment")
         wage_summary = self._build_transfer_summary(wage_transfer, "Wage")
@@ -949,13 +949,13 @@ class NetworkEngine:
             employment_summary,
             wage_summary,
         )
-    
+
         results["net_transfer"] = carbon_summary
         results["employment_transfer"] = employment_summary
         results["wage_transfer"] = wage_summary
         results["hours_transfer"] = hours_summary
         results["transfer_asymmetry"] = asymmetry_summary
-    
+
         carbon_skill_rows = []
         for skill, matrix in skill_carbon_transfer.items():
             skill_summary = self._build_transfer_summary(matrix, "Carbon")
@@ -964,7 +964,7 @@ class NetworkEngine:
         results["carbon_transfer_by_skill"] = (
             pd.concat(carbon_skill_rows, ignore_index=True) if carbon_skill_rows else pd.DataFrame()
         )
-    
+
         employment_skill_rows = []
         for skill, matrix in skill_employment_transfer.items():
             skill_summary = self._build_transfer_summary(matrix, "Employment")
@@ -973,7 +973,7 @@ class NetworkEngine:
         results["employment_transfer_by_skill"] = (
             pd.concat(employment_skill_rows, ignore_index=True) if employment_skill_rows else pd.DataFrame()
         )
-    
+
         wage_skill_rows = []
         for skill, matrix in skill_wage_transfer.items():
             skill_summary = self._build_transfer_summary(matrix, "Wage")
@@ -982,7 +982,7 @@ class NetworkEngine:
         results["wage_transfer_by_skill"] = (
             pd.concat(wage_skill_rows, ignore_index=True) if wage_skill_rows else pd.DataFrame()
         )
-    
+
         hours_skill_rows = []
         for skill, matrix in skill_hours_transfer.items():
             skill_summary = self._build_transfer_summary(matrix, "Hours")
@@ -991,13 +991,13 @@ class NetworkEngine:
         results["hours_transfer_by_skill"] = (
             pd.concat(hours_skill_rows, ignore_index=True) if hours_skill_rows else pd.DataFrame()
         )
-    
+
         results["transfer_asymmetry_by_skill"] = self._build_transfer_asymmetry_by_skill(
             results["carbon_transfer_by_skill"],
             results["employment_transfer_by_skill"],
             results["wage_transfer_by_skill"],
         )
-    
+
         results["employment_transfer_by_skill_gender"] = self._build_metric_summary_by_skill_gender(
             employment_skill_gender_transfer,
             "Employment",
@@ -1023,7 +1023,7 @@ class NetworkEngine:
             skill_hours_transfer,
             "Hours_Transfer",
         )
-    
+
         print("\n  [Top 10 净碳出口国]")
         print(carbon_summary.head(10).to_string(index=False))
         print("\n  [Top 10 净就业输出国]")
@@ -1078,7 +1078,7 @@ class NetworkEngine:
                 .head(10)
                 .to_string(index=False)
             )
-    
+
         top_carbon_paths = self._build_top_transfer_paths(carbon_transfer, "Carbon_Transfer", top_k)
         top_employment_paths = self._build_top_transfer_paths(employment_transfer, "Employment_Transfer", top_k)
         top_wage_paths = self._build_top_transfer_paths(wage_transfer, "Wage_Transfer", top_k)
@@ -1087,7 +1087,7 @@ class NetworkEngine:
         results["top_employment_paths"] = top_employment_paths
         results["top_wage_paths"] = top_wage_paths
         results["top_hours_paths"] = top_hours_paths
-    
+
         print(f"\n  [Top {top_k} 隐含碳传导路径]")
         print(top_carbon_paths.to_string(index=False))
         print(f"\n  [Top {top_k} 隐含就业传导路径]")
@@ -1096,12 +1096,12 @@ class NetworkEngine:
         print(top_wage_paths.to_string(index=False))
         print(f"\n  [Top {top_k} 隐含工时传导路径]")
         print(top_hours_paths.to_string(index=False))
-    
+
         print("\n  计算传导网络中心性...")
         g_carbon = nx.DiGraph()
         positive_transfer = carbon_transfer[carbon_transfer > 0]
         threshold = positive_transfer.mean() if positive_transfer.size > 0 else 0.0
-    
+
         for region in self.regions:
             g_carbon.add_node(region)
         for i, from_region in enumerate(self.regions):
@@ -1113,7 +1113,7 @@ class NetworkEngine:
                     to_region,
                     weight=float(carbon_transfer[i, j]),
                 )
-    
+
         path_graph = self._prepare_path_graph(g_carbon)
         betweenness = nx.betweenness_centrality(path_graph, weight="distance")
         transmission_centrality = pd.DataFrame(
@@ -1122,7 +1122,7 @@ class NetworkEngine:
                 "Transmission_Centrality": list(betweenness.values()),
             }
         ).sort_values("Transmission_Centrality", ascending=False)
-    
+
         results["transmission_centrality"] = transmission_centrality
         results["carbon_network"] = g_carbon
         results["transfer_metrics"] = {
@@ -1144,12 +1144,12 @@ class NetworkEngine:
             "skill_gender_employment_transfer_count": int(len(results["employment_transfer_by_skill_gender"])),
             "skill_gender_hours_transfer_count": int(len(results["hours_transfer_by_skill_gender"])),
         }
-    
+
         print("\n  [Top 10 碳传导中介节点]")
         print(transmission_centrality.head(10).to_string(index=False))
-    
+
         return results
-    
+
     def build_country_sector_transfer_tables(self) -> Dict[str, pd.DataFrame]:
         """
         构建“需求国 -> 生产国 -> 部门”层级的隐含转移表。
@@ -1419,31 +1419,31 @@ class NetworkEngine:
     def identify_key_sectors(self, top_k: int = 10, method: str = 'aggregated') -> pd.DataFrame:
         """
         识别关键部门（高碳+高就业+高中心性）
-    
+
         Args:
             top_k: 返回前K个关键部门
             method: 'aggregated' 基于聚合网络, 'sector' 基于部门网络
-    
+
         Returns:
             DataFrame: 关键部门分析结果
         """
         print("\n" + "=" * 70)
         print("步骤6: 识别关键部门")
         print("=" * 70)
-    
+
         if method != 'aggregated':
             print("  提示: 如需部门级别网络分析，请使用 build_network(method='trade_flow')")
             return pd.DataFrame()
-    
+
         if self.network is None:
             print("  ✗ 请先构建网络")
             return pd.DataFrame()
-    
+
         n_regions = len(self.regions)
         n_sectors = len(self.sectors)
         output_vector = self.mrio.x.values.flatten() if self.mrio is not None else np.zeros(n_regions * n_sectors)
         z_values = self.Z.values if self.Z is not None else np.zeros((n_regions * n_sectors, n_regions * n_sectors))
-    
+
         results = []
         for i, region in enumerate(self.regions):
             for j, sector in enumerate(self.sectors):
@@ -1458,7 +1458,7 @@ class NetworkEngine:
                     'Flow_Out': float(z_values[idx, :].sum()),
                 }
                 row['Flow_Total'] = row['Flow_In'] + row['Flow_Out']
-    
+
                 if self.employment is not None:
                     emp_total = 0.0
                     for skill, data in self.employment.items():
@@ -1466,11 +1466,11 @@ class NetworkEngine:
                         row[f'Emp_{skill}'] = emp_value
                         emp_total += emp_value
                     row['Emp_Total'] = emp_total
-    
+
                 results.append(row)
-    
+
         df = pd.DataFrame(results)
-    
+
         df['CO2_norm'] = df['Direct_CO2'] / df['Direct_CO2'].max() if df['Direct_CO2'].max() > 0 else 0.0
         if 'Emp_Total' in df.columns and df['Emp_Total'].max() > 0:
             df['Emp_norm'] = df['Emp_Total'] / df['Emp_Total'].max()
@@ -1478,39 +1478,39 @@ class NetworkEngine:
             df['Emp_norm'] = 0.0
         df['Flow_norm'] = df['Flow_Total'] / df['Flow_Total'].max() if df['Flow_Total'].max() > 0 else 0.0
         df['Criticality_Index'] = df['CO2_norm'] * 0.4 + df['Emp_norm'] * 0.3 + df['Flow_norm'] * 0.3
-    
+
         df = df.sort_values('Criticality_Index', ascending=False).reset_index(drop=True)
-    
+
         print(f"\n  [Top {top_k} 关键部门]")
         cols = ['Region', 'Sector', 'Criticality_Index', 'Direct_CO2', 'Flow_Total']
         if 'Emp_Total' in df.columns:
             cols.append('Emp_Total')
         print(df[cols].head(top_k).to_string())
-    
+
         return df
     def compute_network_metrics(self) -> Dict:
         """
         计算网络整体指标
-    
+
         Returns:
             Dict: 网络指标
         """
         print("\n" + "=" * 70)
         print("步骤7: 计算网络整体指标")
         print("=" * 70)
-    
+
         if self.network is None:
             print("  ✗ 请先构建网络")
             return {}
-    
+
         G = self.network
         metrics = {}
-    
+
         # 基本指标
         metrics['nodes'] = G.number_of_nodes()
         metrics['edges'] = G.number_of_edges()
         metrics['density'] = nx.density(G)
-    
+
         # 连通性
         if nx.is_weakly_connected(G):
             metrics['weakly_connected'] = True
@@ -1518,7 +1518,7 @@ class NetworkEngine:
         else:
             metrics['weakly_connected'] = False
             metrics['num_weakly_connected_components'] = nx.number_weakly_connected_components(G)
-    
+
         # 度分布
         in_degrees = [d for n, d in G.in_degree()]
         out_degrees = [d for n, d in G.out_degree()]
@@ -1526,25 +1526,25 @@ class NetworkEngine:
         metrics['avg_out_degree'] = np.mean(out_degrees)
         metrics['std_in_degree'] = np.std(in_degrees)
         metrics['std_out_degree'] = np.std(out_degrees)
-    
+
         # 加权度
         weighted_in = [d for n, d in G.in_degree(weight='weight')]
         weighted_out = [d for n, d in G.out_degree(weight='weight')]
         metrics['total_flow_in'] = sum(weighted_in)
         metrics['total_flow_out'] = sum(weighted_out)
-    
+
         # 聚类系数（对于有向图）
         try:
             metrics['clustering_coefficient'] = nx.average_clustering(G.to_undirected())
         except:
             metrics['clustering_coefficient'] = None
-    
+
         # 互惠性
         try:
             metrics['reciprocity'] = nx.reciprocity(G)
         except:
             metrics['reciprocity'] = None
-    
+
         # 打印结果
         print(f"  节点数: {metrics['nodes']}")
         print(f"  边数: {metrics['edges']}")
@@ -1557,9 +1557,9 @@ class NetworkEngine:
             print(f"  聚类系数: {metrics['clustering_coefficient']:.4f}")
         if metrics['reciprocity']:
             print(f"  互惠性: {metrics['reciprocity']:.4f}")
-    
+
         return metrics
-    
+
 
     def save_results(self, output_dir: str) -> Dict:
         """
@@ -1671,5 +1671,3 @@ class NetworkEngine:
 # =========================================================================
 # 主函数
 # =========================================================================
-
-

@@ -330,8 +330,8 @@ def build_frontier_structure(frontier: pd.DataFrame, duplicate_audit: pd.DataFra
     write_csv(output, FRONTIER_DIR / "current_frontier_structure_summary.csv", ["Block", "Metric", "Variable_X", "Variable_Y"])
     report = f"""# D06 current frontier structure report
 
-日期：{CREATED_AT}  
-执行者：{EXECUTOR}  
+日期：{CREATED_AT}
+执行者：{EXECUTOR}
 规范：`{SPECIFICATION_ID}`
 
 ==========

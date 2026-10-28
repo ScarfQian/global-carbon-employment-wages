@@ -74,4 +74,3 @@ def test_lock_disparity_zero_at_equal_lock(scenario_module, fake_footprint):
     summary = engine._compute_scenario_inequality_summary(outcomes)
     assert np.isclose(summary["Employment_Lock_Disparity"], 0.0)
     assert np.isclose(summary["Hours_Lock_Disparity"], 0.0)
-

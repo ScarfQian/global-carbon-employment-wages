@@ -40,4 +40,3 @@ def test_broad_and_legacy_do_not_define_frontier(scenario_module):
     objective_block = source[source.index('out["F"]'):source.index('out["F"]') + 500]
     assert "Broad_Structural_Inequality_Index" not in objective_block
     assert "Legacy_Five_Component_Index" not in objective_block
-

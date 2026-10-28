@@ -284,13 +284,13 @@ def _prepare_skill_network_levels(skill_frames: Mapping[str, pd.DataFrame]) -> D
         country_country_skill = (
             raw.groupby(["From_Region", "To_Region", "Skill"], as_index=False, dropna=False)["transfer_value"]
             .sum()
-            .sort_values(["From_Region", "To_Region", "Skill"]) 
+            .sort_values(["From_Region", "To_Region", "Skill"])
             .reset_index(drop=True)
         )
         country_country = (
             country_country_skill.groupby(["From_Region", "To_Region"], as_index=False)["transfer_value"]
             .sum()
-            .sort_values(["From_Region", "To_Region"]) 
+            .sort_values(["From_Region", "To_Region"])
             .reset_index(drop=True)
         )
 
@@ -471,7 +471,7 @@ def _prepare_cross_border_sector_tables(sector_frames: Mapping[str, pd.DataFrame
         grouped = (
             raw.groupby(["Demand_Country", "Producer_Country", "Sector"], as_index=False)["transfer_value"]
             .sum()
-            .sort_values(["Demand_Country", "Producer_Country", "Sector"]) 
+            .sort_values(["Demand_Country", "Producer_Country", "Sector"])
             .reset_index(drop=True)
         )
         prepared[metric] = grouped
@@ -683,7 +683,3 @@ def run_all(
     _write_json_records(concentration_summary, Path(output_paths["concentration_summary_json"]))
 
     return output_paths
-
-
-
-
