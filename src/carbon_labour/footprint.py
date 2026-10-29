@@ -47,7 +47,6 @@ class FootprintEngine:
         self.hours = None          # 工作时间矩阵
         self.wage = None           # 工资矩阵
 
-        # 结果存储
         self.results = {}
 
     def load_data(self) -> bool:
@@ -62,21 +61,16 @@ class FootprintEngine:
         print("=" * 70)
 
         try:
-            # 使用正确的解析方法
             self.mrio = pymrio.parse_exiobase3(self.data_path)
             print(f"  ✓ 数据加载成功")
 
-            # 计算Leontief逆矩阵
             self.mrio.calc_all()
             print(f"  ✓ Leontief逆矩阵计算完成")
 
-            # 获取维度信息
             self._extract_dimension_info()
 
-            # 提取核心矩阵
             self._extract_core_matrices()
 
-            # 提取扩展数据
             self._extract_extension_data()
 
             self._print_summary()
@@ -90,15 +84,12 @@ class FootprintEngine:
 
     def _extract_dimension_info(self):
         """提取维度信息"""
-        # 获取区域列表
         self.regions = self.mrio.Y.index.get_level_values(0).unique().tolist()
         self.n_regions = len(self.regions)
 
-        # 获取产品列表
         self.products = self.mrio.Y.index.get_level_values(1).unique().tolist()
         self.n_products = len(self.products)
 
-        # 获取最终需求类别数
         self.n_fc = self.mrio.Y.shape[1]
 
         print(f"  - 区域数: {self.n_regions}")
@@ -118,10 +109,9 @@ class FootprintEngine:
         """提取扩展数据（CO2、就业人数、工作时间、工资）"""
         print("\n  提取扩展数据:")
 
-        # 获取总产出向量
         self.x = self.mrio.x.values.flatten()  # (9800,)
 
-        # 1. CO2排放 - 使用S（排放系数矩阵）而非F（排放流量）
+        # S contains satellite coefficients; F contains direct flows.
         co2_idx = [i for i, name in enumerate(self.mrio.air_emissions.S.index)
                    if 'CO2 - combustion' in name and 'bio' not in name]
         if co2_idx:
@@ -131,7 +121,6 @@ class FootprintEngine:
             print(f"    ✓ CO2排放: {len(co2_idx)}类 → 排放系数向量 {self.co2_emissions.shape}")
             print(f"      - 总排放: {self.co2_total:.2e} kg = {self.co2_total/1e9:.2f} 百万吨")
 
-        # 2. 就业人数与工作时间数据 - 使用S（系数）
         if hasattr(self.mrio.employment, 'S'):
             emp_s = self.mrio.employment.S
             emp_categories = emp_s.index.tolist()
@@ -179,7 +168,6 @@ class FootprintEngine:
         for cat in self.hours['categories']:
             print(f"      - {cat}")
 
-        # 3. 工资数据 - 使用S（工资系数）
         if hasattr(self.mrio.factor_inputs, 'S'):
             wage_s = self.mrio.factor_inputs.S
             wage_categories = wage_s.index.tolist()
@@ -733,7 +721,6 @@ class FootprintEngine:
         wage_data = self.wage['data']  # (9, 9800)
         categories = self.wage['categories']
 
-        # 解析技能等级
         wage_by_skill = {}
 
         for i, cat in enumerate(categories):
@@ -743,7 +730,6 @@ class FootprintEngine:
             wage_footprint = wage_intensity @ self.L @ self.Y  # (343,)
             wage_total = wage_footprint.sum()
 
-            # 提取技能等级
             if 'Low' in cat:
                 skill = 'Low'
             elif 'Medium' in cat:
@@ -759,7 +745,6 @@ class FootprintEngine:
 
             print(f"  - {cat}: {wage_total:.2e} 百万欧元")
 
-        # 创建DataFrame
         df = pd.DataFrame.from_dict(wage_by_skill, orient='index', columns=['Wage_Footprint'])
         df = df.sort_values('Wage_Footprint', ascending=False)
 
@@ -1363,13 +1348,11 @@ class FootprintEngine:
         print("=" * 70)
         print("  方法：按部门碳强度分类，计算高碳部门的技能集中度")
 
-        # 获取数据
         emp_data = self.employment['data']  # (6, 9800) 就业系数
         categories = self.employment['categories']
         co2_coef = self.co2_emissions  # (9800,) CO2系数 (kg/EUR)
         x = self.x  # (9800,) 总产出 (EUR)
 
-        # 解析技能等级
         skill_map = {}
         for i, cat in enumerate(categories):
             if 'Low-skilled' in cat:
@@ -1394,22 +1377,18 @@ class FootprintEngine:
         print(f"    - 高碳部门: > {threshold_high:.2f} kg/EUR")
         print(f"    - 低碳部门: < {threshold_low:.2f} kg/EUR")
 
-        # 计算每个国家的错配指数
         results = []
 
         for r, region in enumerate(self.regions):
             start_idx = r * self.n_products
             end_idx = start_idx + self.n_products
 
-            # 该国家的产出向量
             x_region = x[start_idx:end_idx]  # (200,)
             co2_region = carbon_intensity[start_idx:end_idx]  # (200,)
 
-            # 分类高碳/低碳部门
             high_carbon_mask = co2_region > threshold_high
             low_carbon_mask = co2_region < threshold_low
 
-            # 计算各技能的总就业
             emp_by_skill = {'Low': 0, 'Medium': 0, 'High': 0}
             emp_high_carbon_by_skill = {'Low': 0, 'Medium': 0, 'High': 0}
 
@@ -1422,11 +1401,9 @@ class FootprintEngine:
                 emp_coef = emp_data[i, start_idx:end_idx]  # (200,)
                 emp_region = emp_coef * x_region  # (200,)
 
-                # 总就业
                 emp_total = emp_region.sum()
                 emp_by_skill[skill] += emp_total
 
-                # 高碳部门就业
                 emp_high_carbon = (emp_region * high_carbon_mask).sum()
                 emp_high_carbon_by_skill[skill] += emp_high_carbon
 
@@ -1456,10 +1433,8 @@ class FootprintEngine:
                     'Mismatch_Index': mismatch
                 })
 
-        # 创建DataFrame
         df = pd.DataFrame(results)
 
-        # 打印结果
         print("\n  各国错配指数（低技能，Top 10）:")
         low_skill_df = df[df['Skill'] == 'Low'].sort_values('Mismatch_Index', ascending=False)
         for idx, row in low_skill_df.head(10).iterrows():
@@ -1470,7 +1445,6 @@ class FootprintEngine:
         for idx, row in high_skill_df.head(10).iterrows():
             print(f"    {row['Region']}: {row['Mismatch_Index']:.3f} (高碳集中度:{row['High_Carbon_Share']:.1%})")
 
-        # 全球汇总（按技能）
         print("\n  全球汇总（按技能）:")
         global_summary = df.groupby('Skill').agg({
             'Total_Employment': 'sum',
@@ -1504,7 +1478,6 @@ class FootprintEngine:
         categories = self.employment['categories']
         co2_coef = self.co2_emissions  # (9800,)
 
-        # 按技能汇总就业
         employment_by_skill = {'Low': 0, 'Medium': 0, 'High': 0}
 
         for i, cat in enumerate(categories):
@@ -1514,7 +1487,6 @@ class FootprintEngine:
             emp_direct = emp_intensity * self.x  # (9800,)
             emp_total = emp_direct.sum()
 
-            # 解析技能等级
             if 'Low-skilled' in cat:
                 skill = 'Low'
             elif 'Medium-skilled' in cat:
@@ -1558,17 +1530,13 @@ class FootprintEngine:
 
         total_co2 = sum(co2_by_skill.values())
 
-        # 计算错配指数
         mismatch_index = {}
 
         for skill in ['Low', 'Medium', 'High']:
-            # 碳排放占比
             carbon_share = co2_by_skill[skill] / total_co2 if total_co2 > 0 else 0
 
-            # 就业占比
             employment_share = employment_by_skill[skill] / total_employment if total_employment > 0 else 0
 
-            # 错配指数
             if employment_share > 0:
                 mismatch = carbon_share / employment_share
             else:
@@ -1585,10 +1553,8 @@ class FootprintEngine:
             print(f"    - 就业占比: {employment_share:.2%}")
             print(f"    - 错配指数: {mismatch:.3f}")
 
-        # 创建DataFrame
         df = pd.DataFrame.from_dict(mismatch_index, orient='index')
 
-        # 标记错配类型
         df['Mismatch_Type'] = df['Mismatch_Index'].apply(
             lambda x: 'Over-exposed' if x > 1 else ('Under-exposed' if x < 1 else 'Balanced')
         )
@@ -1611,58 +1577,40 @@ class FootprintEngine:
         print("开始完整足迹计算")
         print("=" * 70)
 
-        # 1. 碳足迹（按国家）
         self.compute_carbon_footprint_by_country()
 
-        # 2. 消费侧国家三元组（隐含碳/就业/工资）
         self.compute_consumption_side_country_triplets()
 
-        # 3. 生产侧国家三元组（直接碳/就业/工资）
         self.compute_production_side_country_triplets()
 
-        # 4. 消费侧国家×技能账户（隐含就业/工资）
         self.compute_consumption_side_country_skill_triplets()
 
-        # 5. 生产侧国家×技能账户（直接就业/工资）
         self.compute_production_side_country_skill_triplets()
 
-        # 6. 就业足迹（按技能×性别）
         self.compute_employment_footprint_by_skill_gender()
 
-        # 7. 工作时间足迹（按技能×性别）
         self.compute_hours_footprint_by_skill_gender()
 
-        # 8. 工资足迹（按技能）
         self.compute_wage_footprint_by_skill()
 
-        # 9. 每小时工资（按技能）
         self.compute_wage_per_hour_by_skill()
 
-        # 10. 消费侧国家×技能×性别就业账户
         self.compute_consumption_side_country_skill_gender_employment()
 
-        # 11. 生产侧国家×技能×性别就业账户
         self.compute_production_side_country_skill_gender_employment()
 
-        # 12. 消费侧国家×技能×性别工时账户
         self.compute_consumption_side_country_skill_gender_hours()
 
-        # 13. 生产侧国家×技能×性别工时账户
         self.compute_production_side_country_skill_gender_hours()
 
-        # 14. 碳份额 vs 工时份额错配（按技能）
         self.compute_carbon_hours_mismatch()
 
-        # 15. 高碳部门工时占比（按技能×性别）
         self.compute_high_carbon_hours_by_skill_gender()
 
-        # 16. 工时锁定差距
         self.compute_hours_lock_gap()
 
-        # 17. 技能-碳错配指数（按国家×技能）
         self.compute_skill_carbon_mismatch_index_by_country()
 
-        # 18. 技能-碳错配指数（全球汇总）
         self.compute_skill_carbon_mismatch_index()
 
         # 工资×技能×性别估算不纳入默认计算。
@@ -1687,7 +1635,6 @@ class FootprintEngine:
         os.makedirs(csv_dir, exist_ok=True)
         os.makedirs(json_dir, exist_ok=True)
 
-        # 保存各结果
         for name, df in self.results.items():
             file_path = os.path.join(csv_dir, f"{name}.csv")
             df.to_csv(file_path)

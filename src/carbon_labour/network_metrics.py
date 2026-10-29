@@ -10,9 +10,7 @@ import numpy as np
 import pandas as pd
 
 
-# =========================================================================
 # 路径与常量配置
-# =========================================================================
 
 NETWORKS: List[str] = ["carbon", "employment", "wage", "hours"]
 NETWORK_PAIRS: List[Tuple[str, str]] = list(combinations(NETWORKS, 2))
@@ -51,9 +49,7 @@ OUTPUT_FILE_NAMES: Dict[str, str] = {
 }
 
 
-# =========================================================================
 # 通用数值工具
-# =========================================================================
 
 
 def _safe_float(value: float) -> float:
@@ -167,9 +163,7 @@ def _top_share(shares: np.ndarray, top_k: int) -> float:
     return _safe_float(array[: min(top_k, array.size)].sum())
 
 
-# =========================================================================
 # 输入读取与标准化
-# =========================================================================
 
 
 def _load_csv(path: str, value_column: str) -> pd.DataFrame:
@@ -262,9 +256,7 @@ def _build_input_checks(
     return check_frame.sort_values(["level", "metric", "dataset"]).reset_index(drop=True), skill_frames, sector_frames
 
 
-# =========================================================================
 # 边表标准化与 overlap / concentration / edge rank
-# =========================================================================
 
 
 def _prepare_skill_network_levels(skill_frames: Mapping[str, pd.DataFrame]) -> Dict[str, Dict[str, pd.DataFrame]]:
@@ -452,9 +444,7 @@ def _build_edge_rank_full(level_tables: Mapping[str, Mapping[str, pd.DataFrame]]
     return pd.concat(rows, ignore_index=True)
 
 
-# =========================================================================
 # corridor-sector divergence 与 sector share 长表
-# =========================================================================
 
 
 def _prepare_cross_border_sector_tables(sector_frames: Mapping[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
@@ -611,9 +601,7 @@ def _compute_corridor_sector_divergence(sector_tables: Mapping[str, pd.DataFrame
     ).reset_index(drop=True)
 
 
-# =========================================================================
 # 说明文件与结果写出
-# =========================================================================
 
 
 def _write_note(output_dir: Path, skill_input_paths: Mapping[str, str], sector_input_paths: Mapping[str, str]) -> Path:
@@ -643,9 +631,7 @@ def _write_json_records(frame: pd.DataFrame, path: Path) -> None:
     path.write_text(frame.to_json(orient="records", force_ascii=False, indent=2), encoding="utf-8")
 
 
-# =========================================================================
 # 主流程
-# =========================================================================
 
 
 def run_all(

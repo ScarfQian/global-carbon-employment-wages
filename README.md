@@ -6,7 +6,7 @@ The analysis uses the 2022 product-by-product tables from EXIOBASE 3.9.6: 44 cou
 
 ## Installation
 
-The original numerical environment used Python 3.12.7. Exact package versions are recorded in `requirements.txt`.
+Tested with Python 3.12.7 and the package versions in `requirements.txt`.
 
 ```bash
 python -m venv .venv
@@ -23,7 +23,7 @@ Obtain EXIOBASE 3.9.6, year 2022, product-by-product (`pxp`), from [EXIOBASE](ht
 export EXIOBASE_PXP_PATH=/path/to/IOT_2022_pxp
 ```
 
-The repository contains code. Raw data, prepared inputs, numerical reference tables, generated results and figures are held separately. See [data requirements](docs/data.md) for the required files and units.
+Data and results are stored separately. See [data requirements](docs/data.md) for the required files and units.
 
 ## Run the analyses
 
@@ -47,10 +47,10 @@ python scripts/run_analysis.py --stage future-deterministic
 | `future-deterministic` | Four pathways across nine years, plus the policy package and anchor-year scenarios |
 | `future-monte-carlo` | Uncertainty analysis for 12 pathway-year combinations |
 | `future-sobol` | Eight-parameter sensitivity for the same 12 combinations |
-| `future-nsga3` | Policy frontiers with the original selection of convergence checks |
-| `future-nsga3-extension` | Additional generations for worlds that fail the specified convergence checks |
+| `future-nsga3` | Four-objective policy frontiers and convergence checks |
+| `future-nsga3-extension` | Additional generations when convergence criteria are not met |
 
-`current-all` runs the four current-policy stages. `future-all` runs the four future-policy stages. The policy searches and uncertainty analyses take substantially longer than the deterministic stages. All original scenario settings, parameter bounds, search seeds and generation counts are defined in the source modules.
+`current-all` runs the four current-policy stages. `future-all` runs the four future-policy stages. Policy searches and uncertainty analyses take substantially longer than the deterministic stages. Scenario settings, parameter bounds, seeds and generation counts are defined in the source modules.
 
 The objectives are carbon reduction, employment growth, growth in total wages and reduction in the country-skill inequality index. Negative improvements are retained in the objective vectors. The inequality index is the mean of the carbon-employment and carbon-wage bivariate Ginis. Labour hours are reported alongside these outcomes. S5 is a specified combination of carbon pricing, renewable transition, demand substitution and transition support.
 
@@ -65,7 +65,7 @@ python scripts/summarize_results.py --stage future-probabilities
 python scripts/summarize_results.py --stage network
 ```
 
-These commands calculate frontier representatives, frontier structure, policy-variable intervals, probability summaries and network-share divergences. `future-frontiers` reads the future search tables; `future-probabilities` reads the future Monte Carlo summaries. They do not render figures. Figure code is maintained separately in the local `Figure/` folder.
+These commands calculate frontier representatives, frontier structure, policy-variable intervals, probability summaries and network-share divergences. `future-frontiers` reads the future search tables; `future-probabilities` reads the future Monte Carlo summaries. Plotting code is maintained separately.
 
 ## Numerical verification
 
@@ -79,7 +79,7 @@ python scripts/verify_results.py \
   --report results/numerical-comparison.csv
 ```
 
-Reference values and comparison reports are not distributed in this public repository. The small MRIO systems in `tests/` are synthetic mathematical fixtures; they are not paper data. See [reproduction scope](docs/reproduction.md) for the analyses executed during code preparation and the stages that require longer reruns.
+Reference tables and comparison reports are stored separately. The tests use small synthetic MRIO systems. See [reproduction instructions](docs/reproduction.md) for the execution order and tested analyses.
 
 ## Code organization
 

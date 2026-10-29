@@ -53,9 +53,7 @@ class _ScenarioNSGA3Problem(ElementwiseProblem):
 class ScenarioEngine:
     """面向公正转型的情景模拟引擎。"""
 
-    # ==========
     # 初始化与元数据解析
-    # ==========
 
     def __init__(self, footprint_engine):
         """
@@ -332,9 +330,7 @@ class ScenarioEngine:
             "green_investment": green_investment_mask,
         }
 
-    # ==========
     # 通用计算工具
-    # ==========
 
     @staticmethod
     def _safe_pct_change(new_value: float, old_value: float) -> float:
@@ -952,9 +948,7 @@ class ScenarioEngine:
         df = df.drop_duplicates(subset=list(self.policy_parameter_order)).reset_index(drop=True)
         return self._select_pareto_front(df)
 
-    # ==========
     # 基准情景
-    # ==========
 
     def compute_baseline(self) -> Dict:
         """计算基准情景，并统一使用足迹口径。"""
@@ -972,9 +966,7 @@ class ScenarioEngine:
         self.scenarios["baseline"] = pd.DataFrame([self._build_result_record("S0_baseline", self.baseline)])
         return self.baseline
 
-    # ==========
     # 情景冲击构造器
-    # ==========
 
     def _apply_carbon_tax_y_shock(
         self,
@@ -1132,9 +1124,7 @@ class ScenarioEngine:
 
         return self._ensure_non_negative(employment_new), self._ensure_non_negative(wage_new)
 
-    # ==========
     # 六个核心情景
-    # ==========
 
     def simulate_carbon_tax(
         self,
@@ -1355,9 +1345,7 @@ class ScenarioEngine:
         self.scenarios["core_scenarios"] = df
         self.scenarios["triple_inequality"] = df[["Scenario", *self.inequality_columns]].copy()
         return df
-    # ==========
     # Monte Carlo / Sobol / Pareto / 情景矩阵
-    # ==========
 
     def monte_carlo_simulation(
         self,
@@ -1953,9 +1941,7 @@ class ScenarioEngine:
         self.scenarios["single_policy_scan_uncertainty_summary"] = summary_df
         return draw_df, summary_df
 
-    # ==========
     # 结果保存
-    # ==========
     def save_results(self, output_path: str) -> None:
         """保存所有情景结果。"""
         csv_dir = os.path.join(output_path, "csv")

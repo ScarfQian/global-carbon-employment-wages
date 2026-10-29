@@ -8,9 +8,7 @@ import numpy as np
 import pandas as pd
 import pymrio
 
-# =========================================================================
 # 网络构建模块
-# =========================================================================
 
 class NetworkEngine:
     """供应链网络分析引擎"""
@@ -416,22 +414,18 @@ class NetworkEngine:
         """基于贸易流构建网络"""
         G = nx.DiGraph()
 
-        # 获取总产出
         x = self.mrio.x.values.flatten()
 
-        # 构建流量矩阵（Z矩阵）
         Z_values = self.Z.values
         n_regions = len(self.regions)
         n_sectors = len(self.sectors)
 
-        # 添加节点
         for i, region in enumerate(self.regions):
             for j, sector in enumerate(self.sectors):
                 node_id = i * n_sectors + j
                 node_name = f"{region}_{sector}"
                 G.add_node(node_id, name=node_name, region=region, sector=sector)
 
-        # 添加边（基于中间投入）
         total_flow = Z_values.sum()
         threshold_value = total_flow * threshold
 
@@ -454,14 +448,12 @@ class NetworkEngine:
         n_regions = len(self.regions)
         n_sectors = len(self.sectors)
 
-        # 添加节点
         for i, region in enumerate(self.regions):
             for j, sector in enumerate(self.sectors):
                 node_id = i * n_sectors + j
                 node_name = f"{region}_{sector}"
                 G.add_node(node_id, name=node_name, region=region, sector=sector)
 
-        # 添加边（基于Leontief系数）
         threshold_value = L_values.mean() * threshold
         edges_added = 0
 
@@ -479,18 +471,15 @@ class NetworkEngine:
         """构建国家层面的聚合网络"""
         G = nx.DiGraph()
 
-        # 按国家聚合贸易流
         n_regions = len(self.regions)
         n_sectors = len(self.sectors)
         Z_values = self.Z.values
 
-        # 创建国家间流量矩阵
         country_flow = np.zeros((n_regions, n_regions))
 
         for i in range(n_regions):
             for j in range(n_regions):
                 if i != j:
-                    # 计算从国家i到国家j的总流量
                     start_i = i * n_sectors
                     end_i = (i + 1) * n_sectors
                     start_j = j * n_sectors
@@ -498,9 +487,7 @@ class NetworkEngine:
                     flow = Z_values[start_i:end_i, start_j:end_j].sum()
                     country_flow[i, j] = flow
 
-        # 添加节点
         for i, region in enumerate(self.regions):
-            # 计算该国家的碳排放
             if self.co2_emissions is not None:
                 start = i * n_sectors
                 end = (i + 1) * n_sectors
@@ -510,7 +497,6 @@ class NetworkEngine:
 
             G.add_node(region, region=region, co2=float(co2))
 
-        # 添加边
         threshold = country_flow[country_flow > 0].mean() * 0.1
         edges_added = 0
 
@@ -577,7 +563,6 @@ class NetworkEngine:
         pagerank = nx.pagerank(self.network, weight='weight')
         results['pagerank'] = pagerank
 
-        # 创建汇总DataFrame
         df_results = []
         for node in self.network.nodes():
             node_data = self.network.nodes[node]
@@ -622,11 +607,9 @@ class NetworkEngine:
         n_regions = len(self.regions)
         n_sectors = len(self.sectors)
 
-        # 聚合节点级中心性到国家层面
         node_centrality = self.compute_centrality()
         df = node_centrality['summary']
 
-        # 按国家聚合
         country_stats = df.groupby('Region').agg({
             'In_Degree': 'mean',
             'Out_Degree': 'mean',
@@ -636,7 +619,6 @@ class NetworkEngine:
             'PageRank': 'sum'
         }).reset_index()
 
-        # 添加碳排放数据
         if self.co2_emissions is not None:
             co2_by_country = []
             for i, region in enumerate(self.regions):
@@ -646,7 +628,6 @@ class NetworkEngine:
                 co2_by_country.append(co2)
             country_stats['CO2_Emissions'] = co2_by_country
 
-        # 添加就业数据
         if self.employment is not None:
             for skill, data in self.employment.items():
                 emp_by_country = []
@@ -664,7 +645,6 @@ class NetworkEngine:
             country_stats['Weighted_In'] / country_stats['Weighted_In'].max() * 0.3
         )
 
-        # 排序
         country_stats = country_stats.sort_values('Influence_Index', ascending=False)
 
         print(f"  ✓ 国家中心性计算完成")
@@ -1545,7 +1525,6 @@ class NetworkEngine:
         except:
             metrics['reciprocity'] = None
 
-        # 打印结果
         print(f"  节点数: {metrics['nodes']}")
         print(f"  边数: {metrics['edges']}")
         print(f"  密度: {metrics['density']:.4f}")
@@ -1666,8 +1645,3 @@ class NetworkEngine:
 
         print("\n  ✓ 所有结果保存完成")
         return {"transmission": transmission, "country_sector": country_sector}
-
-
-# =========================================================================
-# 主函数
-# =========================================================================

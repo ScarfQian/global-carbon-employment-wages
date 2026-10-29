@@ -21,9 +21,7 @@ from scipy.stats import spearmanr
 from pymoo.indicators.hv import HV
 
 
-# ==========
 # 路径与固定元数据
-# ==========
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CODE_DIR = Path(__file__).resolve().parent
@@ -157,9 +155,7 @@ def validate_formal_mc_draws(stage: str, mc_draws: int) -> None:
         )
 
 
-# ==========
-# 预重跑精确回归门
-# ==========
+# 模型一致性检查
 
 def check_model(engine, inequality_module) -> pd.DataFrame:
     """使用真实 EXIOBASE 检查基线、Eq. (9)、工资和紧凑 exact 代数。"""
@@ -250,9 +246,7 @@ def check_model(engine, inequality_module) -> pd.DataFrame:
     return audit
 
 
-# ==========
 # Current S0-S5
-# ==========
 
 def build_eq9_and_coverage(engine, inequality_module, core: pd.DataFrame) -> None:
     """输出 baseline country-skill Eq. (9) 排序轨迹和 S0-S5 归属覆盖审计。"""
@@ -385,9 +379,7 @@ def run_current_core(engine, inequality_module) -> pd.DataFrame:
     return core
 
 
-# ==========
 # Current Monte Carlo 与 Sobol
-# ==========
 
 def summarize_draws(draws: pd.DataFrame, id_columns: Optional[Mapping[str, object]] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """汇总 signed 指标区间和联合为正概率。"""
@@ -572,9 +564,7 @@ def run_current_sobol(engine) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame,
     return n128, n256, audit, n512
 
 
-# ==========
 # Current NSGA-III
-# ==========
 
 def _frontier_metrics(
     all_by_seed: Mapping[int, pd.DataFrame],
@@ -730,9 +720,7 @@ def run_current_nsga3(engine, scenario_module, inequality_module) -> Tuple[pd.Da
     return union_all, union_front, audit
 
 
-# ==========
 # Future 36 states 与 12 key worlds
-# ==========
 
 def build_figure2_sector_driver_coverage(engine) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """为 authoritative scale-weighted corridors 精确补算 producer-sector drivers。"""
@@ -1289,9 +1277,7 @@ def run_future_nsga3_extension(
     return all_candidates, frontiers, convergence, frontier_consistent
 
 
-# ==========
 # 入口
-# ==========
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """解析可断点执行的阶段参数。"""

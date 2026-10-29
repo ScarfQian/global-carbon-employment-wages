@@ -15,7 +15,7 @@ from .network import NetworkEngine
 
 
 def _write_frames(frames: Mapping[str, pd.DataFrame], output_dir: Path) -> None:
-    """Write tables with their original comparison filenames."""
+    """Write tables with their comparison filenames."""
     output_dir.mkdir(parents=True, exist_ok=True)
     for filename, frame in frames.items():
         frame.to_csv(output_dir / filename, index=False)
@@ -67,7 +67,7 @@ def _reconcile_wages(engine: FootprintEngine, output_dir: Path) -> None:
 
 
 def _run_production_lock(engine: FootprintEngine, output_dir: Path) -> None:
-    """Compute the original total-direct-carbon employment and hours locks."""
+    """Compute total-direct-carbon employment and hours locks."""
     metrics = production_lock.InequalityMetrics(engine)
     production = metrics.compute_production_side_inequality()
     json_dir = output_dir / "json"
@@ -85,7 +85,7 @@ def _run_production_lock(engine: FootprintEngine, output_dir: Path) -> None:
 
 
 def _network_from_footprint_engine(engine: FootprintEngine) -> NetworkEngine:
-    """Reuse loaded matrices and the original network extension extraction."""
+    """Reuse loaded matrices and the network extension extraction."""
     network = NetworkEngine(str(engine.data_path))
     network.mrio = engine.mrio
     network.L = engine.mrio.L

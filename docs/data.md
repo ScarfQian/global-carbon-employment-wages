@@ -11,8 +11,8 @@ Keep the extracted source layout, including `metadata.json`, `file_parameters.js
 | `employment/F.txt` and associated account files | Employment and labour hours by skill and sex | Thousand persons and million hours |
 | `factor_inputs/F.txt` and associated account files | Compensation and other primary inputs | Million EUR |
 
-The loader uses `pymrio.parse_exiobase3` and the source labels. It retains the table's product and region ordering. Wage comparisons by skill use the three compensation rows labelled Low-, Medium- and High-skilled. The broader sum of factor-input rows is retained separately in descriptive accounting.
+The loader uses `pymrio.parse_exiobase3` and retains the source product and region ordering. Wage comparisons by skill use the three compensation rows labelled Low-, Medium- and High-skilled. Descriptive summaries also retain the broader wage total.
 
 Carbon assigned to skills uses employment shares within each producing product cell. A cell with no positive skill-employment denominator retains its unassigned carbon in the aggregate total. Sensitivity analyses use labour-hour and wage shares as alternative allocation bases.
 
-Set `EXIOBASE_PXP_PATH`, or pass `--data-path /path/to/IOT_2022_pxp` to the analysis script. The raw data are not copied into the code repository.
+Set `EXIOBASE_PXP_PATH`, or pass `--data-path /path/to/IOT_2022_pxp` to the analysis script.

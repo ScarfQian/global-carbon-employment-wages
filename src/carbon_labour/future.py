@@ -29,9 +29,7 @@ if len(OBJECTIVE_COLUMNS) != 4 or any("hours" in name.lower() for name in OBJECT
     raise ValueError("最终未来引擎必须使用四个非工时优化目标。")
 
 
-# ==========
 # 未来路径基础配置
-# ==========
 
 YEAR_GRID: Tuple[int, ...] = (2022, 2025, 2030, 2035, 2040, 2045, 2050, 2055, 2060)
 ANCHOR_YEARS: Tuple[int, ...] = (2022, 2030, 2040, 2050, 2060)
@@ -147,9 +145,7 @@ TERMINAL_TARGETS: Dict[str, Dict[str, float]] = {
 }
 
 
-# ==========
 # 世界索引接口
-# ==========
 
 
 @dataclass(frozen=True)
@@ -223,9 +219,7 @@ def key_worlds(
     return _build_worlds("key", KEY_YEARS, pathways, years)
 
 
-# ==========
 # 未来快照
-# ==========
 
 
 class FutureFootprintSnapshot:
@@ -258,9 +252,7 @@ class FutureFootprintSnapshot:
         self.hours = hours
 
 
-# ==========
 # 最终未来分析引擎
-# ==========
 
 
 class FinalFutureEngine:

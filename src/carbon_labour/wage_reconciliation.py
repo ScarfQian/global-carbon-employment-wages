@@ -103,7 +103,7 @@ def write_outputs(reconciliation: pd.DataFrame, audit: pd.DataFrame, output_dir:
 
 
 def build_wage_account_summary(reconciliation_df: pd.DataFrame) -> pd.DataFrame:
-    """Summarize wage accounts using their original broad and policy denominators."""
+    """Summarize wage accounts using their broad and policy denominators."""
     reconciliation = reconciliation_df.copy()
     broad_row = reconciliation.loc[
         reconciliation["Wage_Account_Name"].astype(str).str.contains("broad wage", case=False, na=False)

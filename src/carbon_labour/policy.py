@@ -22,9 +22,7 @@ from pymoo.optimize import minimize
 from pymoo.util.ref_dirs import get_reference_directions
 
 
-# ==========
 # 模型规范
-# ==========
 
 ENGINE_VERSION = "0716-final-scenario-engine-v1"
 SPECIFICATION_ID = "country_skill_mismatch_mean_v1"
@@ -48,9 +46,6 @@ SIGNED_OBJECTIVES = (
 )
 
 
-# ==========
-# ScenarioEngine
-# ==========
 
 class FinalScenarioEngine(_BASE.ScenarioEngine):
     """保留原物理冲击链、使用最终不平等规范的四目标引擎。"""
@@ -730,9 +725,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         return pd.DataFrame(rows)
 
 
-# ==========
 # 四目标 NSGA-III 全候选记录
-# ==========
 
 class _RecordedFinalNSGA3Problem(ElementwiseProblem):
     """记录每个被 exact engine 评价的四维政策向量。"""

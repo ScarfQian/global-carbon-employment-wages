@@ -14,9 +14,7 @@ import numpy as np
 import pandas as pd
 
 
-# ==========
 # 规范常量
-# ==========
 
 SPECIFICATION_ID = "country_skill_mismatch_mean_v1"
 ENGINE_VERSION = "0716-final-inequality-v1"
@@ -71,9 +69,7 @@ class BivariateGiniResult:
     trace: pd.DataFrame
 
 
-# ==========
 # 基础分配函数
-# ==========
 
 def nonnegative_gini(values: np.ndarray) -> float:
     """计算非负值的传统 Gini，空或全零输入返回 0。"""
@@ -140,7 +136,7 @@ def exact_bivariate_gini(
     metric: str = "System_CE_Gini",
 ) -> BivariateGiniResult:
     """
-    使用 corrected attributable-carbon universe 精确重建 Eq. (9)。
+    使用 attributable-carbon universe 精确计算 Eq. (9)。
 
     排序为 carbon/resource 升序；零资源且正碳单元强度为 +inf；
     并列使用 Unit_ID 升序的稳定规则。资源分母使用全资源宇宙，
@@ -204,9 +200,7 @@ def exact_bivariate_gini(
     return BivariateGiniResult(value=value, raw_value=raw_value, trace=frame)
 
 
-# ==========
 # Pareto 与审计工具
-# ==========
 
 def non_dominated_flags(
     frame: pd.DataFrame,

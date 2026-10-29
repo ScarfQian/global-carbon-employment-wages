@@ -58,7 +58,7 @@ def write_csv(frame: pd.DataFrame, path: Path, sort_by: Optional[Sequence[str]] 
 
 
 def stamp(frame: pd.DataFrame, source: str) -> pd.DataFrame:
-    """为 patch 表补充统一审计元数据。"""
+    """为结果表补充统一审计元数据。"""
     result = frame.copy()
     result["Run_Version"] = RUN_VERSION
     result["Created_At"] = CREATED_AT
