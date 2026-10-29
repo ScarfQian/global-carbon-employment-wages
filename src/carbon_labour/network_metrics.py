@@ -53,7 +53,7 @@ OUTPUT_FILE_NAMES: Dict[str, str] = {
 
 
 def _safe_float(value: float) -> float:
-    """将非有限值客观替换为 0，避免摘要表出现 NaN。"""
+    """将非有限值替换为零。"""
     if value is None:
         return 0.0
     numeric = float(value)
@@ -63,7 +63,7 @@ def _safe_float(value: float) -> float:
 
 
 def _safe_series_corr(left: np.ndarray, right: np.ndarray, method: str) -> float:
-    """安全计算相关系数，常数向量或空向量时返回 0。"""
+    """计算相关系数；常数或空向量返回零。"""
     left_array = np.asarray(left, dtype=float).reshape(-1)
     right_array = np.asarray(right, dtype=float).reshape(-1)
     if left_array.size == 0 or right_array.size == 0 or left_array.size != right_array.size:

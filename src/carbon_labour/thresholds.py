@@ -46,7 +46,7 @@ def compute_threshold_rows(
     definition: str,
     percentiles: Sequence[float] = (0.70, 0.80, 0.90),
 ) -> pd.DataFrame:
-    """按总碳或碳就业强度阈值计算 high-carbon lock-in 稳健性。"""
+    """按指定口径（总直接碳排放或单位就业碳排放）计算各阈值下的高碳部门锁定率。"""
     key_cols = [column for column in sector_values.columns if column in ["Producer_Region", "Region", "Sector", "Sector_Code"]]
     if definition == "total_direct_carbon":
         metric_col = "Total_Direct_Carbon"
@@ -115,7 +115,7 @@ def compute_threshold_rows(
 
 
 def build_high_carbon_threshold_audit(total_df: pd.DataFrame, intensity_df: pd.DataFrame) -> pd.DataFrame:
-    """生成 high-carbon threshold robustness 审计。"""
+    """核对不同高碳部门阈值下的结果。"""
     combined = pd.concat([total_df, intensity_df], ignore_index=True)
     rows = [
         audit_row(

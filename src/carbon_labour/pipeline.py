@@ -95,13 +95,13 @@ def configure_paths(data_path: Path, output_root: Path) -> None:
 
 
 def ensure_output_dirs() -> None:
-    """确保版本化结果目录存在。"""
+    """创建各分析阶段的结果目录。"""
     for path in (CURRENT_DIR, FUTURE_DIR, SOURCE_DIR, AUDIT_DIR, READINESS_DIR):
         path.mkdir(parents=True, exist_ok=True)
 
 
 def stamp_frame(frame: pd.DataFrame, upstream_sources: str) -> pd.DataFrame:
-    """为每个正式输出补齐版本、时间、规范和 exact 状态。"""
+    """为结果表添加版本、时间、模型定义和计算状态。"""
     result = frame.copy()
     result["Run_Version"] = RUN_VERSION
     result["Created_At"] = CREATED_AT
@@ -123,7 +123,7 @@ def write_csv(frame: pd.DataFrame, path: Path, upstream_sources: str, sort_by: O
 
 
 def load_exact_engine():
-    """只加载一次真实 EXIOBASE，返回 final ScenarioEngine 及模块。"""
+    """加载 EXIOBASE 并初始化政策引擎。"""
     if not DATA_PATH.is_dir():
         raise FileNotFoundError(f"EXIOBASE 路径不可用: {DATA_PATH}")
     footprint_module = load_module(FOOTPRINT_PATH)
@@ -137,7 +137,7 @@ def load_exact_engine():
 
 
 def audit_row(gate: str, observed, expected, passed: bool, interpretation: str) -> Dict[str, object]:
-    """构造统一的最终审计行。"""
+    """整理一项核对结果。"""
     return {
         "Audit_Gate": gate,
         "Observed": observed,
@@ -148,7 +148,7 @@ def audit_row(gate: str, observed, expected, passed: bool, interpretation: str) 
 
 
 def validate_formal_mc_draws(stage: str, mc_draws: int) -> None:
-    """正式 Monte Carlo final 文件只接受 1000 draws。"""
+    """检查 Monte Carlo 抽样数是否为规定的 1,000 次。"""
     if stage in FORMAL_MC_FINAL_STAGES and mc_draws != 1000:
         raise ValueError(
             f"FORMAL_MC_FINAL_REQUIRES_1000_DRAWS: stage={stage}, mc_draws={mc_draws}"
@@ -158,7 +158,7 @@ def validate_formal_mc_draws(stage: str, mc_draws: int) -> None:
 # 模型一致性检查
 
 def check_model(engine, inequality_module) -> pd.DataFrame:
-    """使用真实 EXIOBASE 检查基线、Eq. (9)、工资和紧凑 exact 代数。"""
+    """检查基准核算、Eq. (9)、工资口径及聚合代数等价性。"""
     baseline = engine.compute_baseline()
     rows = []
     expected_index = 0.5 * (float(baseline["System_CE_Gini"]) + float(baseline["System_CW_Gini"]))
@@ -249,7 +249,7 @@ def check_model(engine, inequality_module) -> pd.DataFrame:
 # Current S0-S5
 
 def build_eq9_and_coverage(engine, inequality_module, core: pd.DataFrame) -> None:
-    """输出 baseline country-skill Eq. (9) 排序轨迹和 S0-S5 归属覆盖审计。"""
+    """输出基准国家-技能二元 Gini 排序及 S0-S5 碳归因覆盖率。"""
     outcomes = engine.baseline
     attribution = inequality_module.attribute_carbon_by_skill(
         outcomes["Carbon_By_Producer"],
@@ -382,7 +382,7 @@ def run_current_core(engine, inequality_module) -> pd.DataFrame:
 # Current Monte Carlo 与 Sobol
 
 def summarize_draws(draws: pd.DataFrame, id_columns: Optional[Mapping[str, object]] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """汇总 signed 指标区间和联合为正概率。"""
+    """汇总指标变化的区间及四目标同时改善的概率。"""
     metrics = [*SIGNED_OBJECTIVES, "Four_Objective_Signed_Sum", "Net_Benefit_Signed"]
     rows = []
     for metric in metrics:
@@ -410,7 +410,7 @@ def summarize_draws(draws: pd.DataFrame, id_columns: Optional[Mapping[str, objec
 
 
 def run_current_monte_carlo(engine, n_iterations: int = 1000) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """执行 S5 八参数 1000-draw exact Monte Carlo。"""
+    """对 S5 的八个参数进行 1,000 次 Monte Carlo 抽样。"""
     draws = engine.run_monte_carlo_exact(n_iterations=n_iterations, random_seed=42)
     summary, probability = summarize_draws(draws)
     write_csv(
@@ -438,7 +438,7 @@ def sobol_convergence(
     frame_large: pd.DataFrame,
     sample_comparison: str,
 ) -> pd.DataFrame:
-    """对 N=128 与 N=256 的参数排名、主导参数和 top-two 执行收敛审计。"""
+    """比较 N=128 与 N=256 的参数排名及前两位参数，检查收敛。"""
     rows = []
     for metric in SIGNED_OBJECTIVES:
         for index_name in ("First_Order", "Total_Effect"):
@@ -468,7 +468,7 @@ def sobol_convergence(
 
 
 def final_current_sobol_comparisons(sobol_audit: pd.DataFrame) -> pd.DataFrame:
-    """按每个 Metric x 基础 Index_Type 选最终可用比较。"""
+    """按指标及指数类型选择样本量最大的可用比较。"""
     if sobol_audit.empty:
         return sobol_audit.copy()
     selected = sobol_audit.copy()
@@ -495,13 +495,13 @@ def final_current_sobol_comparisons(sobol_audit: pd.DataFrame) -> pd.DataFrame:
 
 
 def current_sobol_status(sobol_audit: pd.DataFrame) -> bool:
-    """使用最终可用比较裁决 CURRENT_SOBOL_8PARAM_CONVERGENCE_STATUS。"""
+    """根据最大样本量的可用比较判断 Sobol 收敛状态。"""
     selected = final_current_sobol_comparisons(sobol_audit)
     return bool(selected["Passed"].fillna(False).all())
 
 
 def write_current_sobol_report(sobol_audit: pd.DataFrame, n512: Optional[pd.DataFrame]) -> None:
-    """写出 Sobol 协议完成与最终收敛状态报告。"""
+    """写出 Sobol 抽样与收敛结果。"""
     selected = final_current_sobol_comparisons(sobol_audit)
     convergence_status = current_sobol_status(sobol_audit)
     lines = [
@@ -622,7 +622,7 @@ def _frontier_metrics(
 
 
 def _union_front(all_by_seed: Mapping[int, pd.DataFrame], inequality_module) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """合并三个种子所有 exact candidates，再统一执行非支配筛选。"""
+    """合并三个种子的全部候选，并筛选非支配解。"""
     union_all = pd.concat(list(all_by_seed.values()), ignore_index=True)
     decision_columns = ["tax_rate", "renewable_share", "shift_share", "training_support_level"]
     unique = union_all.drop_duplicates(subset=decision_columns, keep="first").copy()
@@ -637,7 +637,7 @@ def _union_front(all_by_seed: Mapping[int, pd.DataFrame], inequality_module) -> 
 
 
 def run_current_nsga3(engine, scenario_module, inequality_module) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """运行 3 seeds x 30 generations，不收敛时整体扩展到 50 generations。"""
+    """运行三个种子、各 30 代；未收敛时扩展到 50 代。"""
     seeds = (42, 314, 2026)
 
     def run_generation_setting(generations: int):
@@ -723,7 +723,7 @@ def run_current_nsga3(engine, scenario_module, inequality_module) -> Tuple[pd.Da
 # Future 36 states 与 12 key worlds
 
 def build_figure2_sector_driver_coverage(engine) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """为 authoritative scale-weighted corridors 精确补算 producer-sector drivers。"""
+    """计算按规模加权选定走廊的生产部门贡献。"""
     top_path = SOURCE_DIR / "Figure2_authoritative_top_corridors_snapshot.csv"
     if not top_path.exists():
         raise FileNotFoundError(f"Figure 2 authoritative corridor snapshot 缺失: {top_path}")
@@ -837,7 +837,7 @@ def build_figure2_sector_driver_coverage(engine) -> Tuple[pd.DataFrame, pd.DataF
     return drivers, audit
 
 def load_future_engine(final_scenario_engine, scenario_module):
-    """基于 FinalScenarioEngine 持有的 FootprintEngine 建立最终 future engine。"""
+    """复用已加载的足迹引擎，初始化未来情景引擎。"""
     if not isinstance(final_scenario_engine, scenario_module.FinalScenarioEngine):
         raise TypeError("LOAD_FUTURE_ENGINE_REQUIRES_FINAL_SCENARIO_ENGINE")
     footprint_engine = getattr(final_scenario_engine, "engine", None)
@@ -850,7 +850,7 @@ def load_future_engine(final_scenario_engine, scenario_module):
 
 
 def run_future_deterministic(future_engine, future_module) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """运行 36 个 baseline states、36 个 integrated core-policy states 和 20 个 anchor states。"""
+    """计算 36 个基准状态、36 个组合政策状态及 20 个锚点状态。"""
     baseline = future_engine.project_future_baseline()
     write_csv(
         baseline,
@@ -899,7 +899,7 @@ def run_future_deterministic(future_engine, future_module) -> Tuple[pd.DataFrame
 
 
 def build_key_world_cache(future_engine, future_module) -> Dict[Tuple[str, int], object]:
-    """只构造一次 12 个 key-world ScenarioEngine，供 MC、Sobol 和 NSGA 共享。"""
+    """缓存 12 个关键路径-年份的政策引擎，供各分析阶段复用。"""
     cache: Dict[Tuple[str, int], object] = {}
     for world in future_module.key_worlds():
         params = future_engine._get_parameter_row(world.pathway, world.year)
@@ -914,7 +914,7 @@ def run_future_monte_carlo(
     cache: Mapping[Tuple[str, int], object],
     n_iterations: int = 1000,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """对 12 个 key worlds 各运行 1000-draw 八参数 exact Monte Carlo。"""
+    """对 12 个关键路径-年份各进行八参数、1,000 次 Monte Carlo 抽样。"""
     draw_frames = []
     summary_frames = []
     probability_frames = []
@@ -966,7 +966,7 @@ def run_future_sobol(
     future_module,
     cache: Mapping[Tuple[str, int], object],
 ) -> pd.DataFrame:
-    """对 12 个 key worlds 运行 N=256 的八参数 exact Sobol。"""
+    """对 12 个关键路径-年份进行 N=256 的八参数 Sobol 分析。"""
     frames = []
     for world_index, world in enumerate(future_module.key_worlds()):
         frame = cache[(world.pathway, world.year)].run_sobol_8param_exact(
@@ -1014,7 +1014,7 @@ def run_future_nsga3(
     inequality_module,
     cache: Mapping[Tuple[str, int], object],
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """运行 12 世界单种子前沿，并对 3 个代表未来世界执行三种子收敛。"""
+    """计算 12 个路径-年份的单种子前沿，并对三个代表情景进行三种子收敛检查。"""
     all_frames = []
     frontier_frames = []
     for world in future_module.key_worlds():
@@ -1135,7 +1135,7 @@ def _world_membership_mask(frame: pd.DataFrame, worlds: Sequence[Tuple[str, int]
 def load_future_nsga3_failed_worlds(
     convergence_path: Optional[Path] = None,
 ) -> Tuple[Tuple[str, int, int], ...]:
-    """读取失败 world 的当前最大代数，并生成单次加 20 的扩展目标。"""
+    """读取未收敛路径-年份的最大代数，将重跑目标总代数提高 20 代。"""
     if convergence_path is None:
         convergence_path = FUTURE_DIR / "future_nsga3_selected_world_convergence.csv"
     convergence = pd.read_csv(convergence_path)
@@ -1174,7 +1174,7 @@ def run_future_nsga3_extension(
     cache: Mapping[Tuple[str, int], object],
     extension_targets: Sequence[Tuple[str, int, int]],
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """仅扩展失败 worlds，并覆盖其全部既有 selected g* 输出。"""
+    """按提高后的总代数重跑未收敛的路径-年份，并替换相应的多种子结果。"""
     if not extension_targets:
         raise ValueError("FUTURE_NSGA3_EXTENSION_REQUIRES_FAILED_WORLDS")
     failed_worlds = [(pathway, year) for pathway, year, _ in extension_targets]
@@ -1280,7 +1280,7 @@ def run_future_nsga3_extension(
 # 入口
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    """解析可断点执行的阶段参数。"""
+    """解析分析阶段和输入输出参数。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--stage",
@@ -1305,7 +1305,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
-    """加载一次 EXIOBASE 并按指定阶段执行精确重跑。"""
+    """加载 EXIOBASE 并执行指定分析阶段。"""
     args = parse_args(argv)
     configure_paths(args.data_path, args.output_root)
     ensure_output_dirs()

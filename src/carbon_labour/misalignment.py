@@ -101,7 +101,7 @@ class MisalignmentInputs:
 
 
 def _as_1d(name: str, values: Any) -> np.ndarray:
-    """转换为一维 float array，并显式检查非有限值。"""
+    """转换为一维浮点数组并检查非有限值。"""
     array = np.asarray(values, dtype=float).reshape(-1)
     if not np.isfinite(array).all():
         raise ValueError(f"{name} contains non-finite values")
@@ -109,7 +109,7 @@ def _as_1d(name: str, values: Any) -> np.ndarray:
 
 
 def _as_2d(name: str, values: Any) -> np.ndarray:
-    """转换为二维 float array，并显式检查非有限值。"""
+    """转换为二维浮点数组并检查非有限值。"""
     array = np.asarray(values, dtype=float)
     if array.ndim != 2:
         raise ValueError(f"{name} must be a 2D array")
@@ -119,7 +119,7 @@ def _as_2d(name: str, values: Any) -> np.ndarray:
 
 
 def validate_inputs(inputs: MisalignmentInputs) -> MisalignmentInputs:
-    """检查所有 MRIO 输入维度，避免后续矩阵运算静默错位。"""
+    """检查 MRIO 输入数组的维度是否一致。"""
     qC = _as_1d("qC", inputs.qC)
     qE = _as_2d("qE", inputs.qE)
     qH = _as_2d("qH", inputs.qH)
@@ -158,14 +158,14 @@ def validate_inputs(inputs: MisalignmentInputs) -> MisalignmentInputs:
 
 
 def _safe_share(values: pd.Series, total: float) -> pd.Series:
-    """计算全局份额；总量为 0 时返回 NaN，避免伪造 0 份额。"""
+    """计算全局份额；总量为零时返回 NaN。"""
     if total > 0.0:
         return values.astype(float) / total
     return pd.Series(np.nan, index=values.index, dtype=float)
 
 
 def _share_ratio(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
-    """计算 share-normalized ratio；分母份额为 0 时返回 NaN。"""
+    """计算份额比；分母份额为零时返回 NaN。"""
     numerator_array = numerator.to_numpy(dtype=float)
     denominator_array = denominator.to_numpy(dtype=float)
     result = np.full_like(numerator_array, np.nan, dtype=float)
@@ -179,7 +179,7 @@ def _share_ratio(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
 
 
 def _log_ratio(values: pd.Series) -> pd.Series:
-    """对正 ratio 取对数；0 或 NaN ratio 保持 NaN，避免导出 -inf。"""
+    """对正比值取对数；零值或 NaN 返回 NaN。"""
     array = values.to_numpy(dtype=float)
     result = np.full_like(array, np.nan, dtype=float)
     mask = np.isfinite(array) & (array > 0.0)
@@ -188,7 +188,7 @@ def _log_ratio(values: pd.Series) -> pd.Series:
 
 
 def add_misalignment_ratios(df: pd.DataFrame) -> pd.DataFrame:
-    """为 analytical units 增加份额、ratio、log ratio 和 Figure 1 象限。"""
+    """计算各单元的份额、份额比、对数比值及 Figure 1 象限。"""
     result = df.copy()
     totals = {
         "Carbon": float(result["Carbon_Attributed"].sum()),
@@ -226,7 +226,7 @@ def add_misalignment_ratios(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def classify_quadrants(log_r_ce: pd.Series, log_r_we: pd.Series, valid: pd.Series) -> pd.Series:
-    """按 CE 与 WE 的 log ratio 对 country-skill 单元分象限。"""
+    """按 CE 与 WE 的对数比值划分国家-技能单元的象限。"""
     labels = np.full(len(log_r_ce), "Undefined", dtype=object)
     ce = log_r_ce.to_numpy(dtype=float)
     we = log_r_we.to_numpy(dtype=float)
@@ -247,10 +247,9 @@ def _attribute_carbon_by_employment(
     sector_labels: Sequence[str],
     sector_codes: Sequence[str],
 ) -> Tuple[np.ndarray, Dict[str, np.ndarray], List[Dict[str, Any]]]:
-    """使用就业份额将 sector-level carbon 归因到技能，并显式保留未归属碳。
+    """按部门内技能就业份额分配碳排放，并返回归因覆盖率。
 
-    当某个 sector/cell 的 skill-resolved employment 合计为 0 时，正碳排不分配给
-    Low/Medium/High，而是作为 attribution-boundary 的 unattributed carbon 进入审计。
+    技能就业合计非正时，该部门的正碳排放计入未归属部分。
     """
     employment_total = employment_by_skill.sum(axis=0)
     alpha = np.zeros_like(employment_by_skill, dtype=float)
@@ -495,7 +494,7 @@ def _country_skill_from_sector(sector_frame: pd.DataFrame, region_col: str) -> p
 
 
 def _aggregate_consumer_sector_for_alias(consumption_sector: pd.DataFrame) -> pd.DataFrame:
-    """将 producer-consumer-sector-skill 表聚合为旧版 consumer-sector-skill alias。"""
+    """将生产国-消费国-部门-技能表聚合为消费国-部门-技能兼容表。"""
     group_cols = ["Accounting_Perspective", "Consumer_Region", "Sector", "Sector_Code", "Skill"]
     account_cols = ["Carbon_Attributed", "Employment", "Hours", "Wage"]
     result = consumption_sector.groupby(group_cols, as_index=False, observed=False)[account_cols].sum()
@@ -538,7 +537,7 @@ def _aggregate_consumer_sector_for_alias(consumption_sector: pd.DataFrame) -> pd
 
 
 def _ordered(df: pd.DataFrame, columns: Sequence[str], sort_cols: Sequence[str]) -> pd.DataFrame:
-    """稳定列序与行序，确保 CSV 可复现。"""
+    """按固定列序和行序整理表格。"""
     for column in columns:
         if column not in df.columns:
             df[column] = np.nan
@@ -556,7 +555,7 @@ def _audit_row(
     interpretation: str = "",
     details: str = "",
 ) -> Dict[str, Any]:
-    """生成统一 audit 记录。"""
+    """整理一项核对记录。"""
     diff = observed - expected if np.isfinite(observed) and np.isfinite(expected) else np.nan
     rel_diff = diff / expected if np.isfinite(diff) and expected != 0.0 else np.nan
     return {
@@ -690,7 +689,7 @@ def _append_ratio_audit(
     unit_level: str,
     rtol: float = 1e-6,
 ) -> None:
-    """检查 ratio 加权均值、log ratio 一致性和无 infinity。"""
+    """检查比值加权均值、对数比值及无限值。"""
     identity_specs = {
         "R_CE": ("Carbon_Share", "Employment_Share"),
         "R_WE": ("Wage_Share", "Employment_Share"),
@@ -756,7 +755,7 @@ def _append_ratio_audit(
 
 
 def compute_misalignment_package(inputs: MisalignmentInputs) -> Dict[str, Any]:
-    """计算生产侧和消费侧 skill-stratified misalignment diagnostics。"""
+    """计算生产侧和消费侧按技能划分的错配指标。"""
     checked = validate_inputs(inputs)
     audit_rows: List[Dict[str, Any]] = []
 
@@ -853,7 +852,7 @@ def compute_misalignment_package(inputs: MisalignmentInputs) -> Dict[str, Any]:
 
 
 def build_inputs_from_footprint_engine(engine: Any) -> MisalignmentInputs:
-    """从既有 FootprintEngine 提取 qC/qE/qH/qW/x/L/Y 和标签。"""
+    """从 FootprintEngine 提取 qC/qE/qH/qW/x/L/Y 和标签。"""
     qE, skills = engine._build_employment_skill_intensity_matrix()
     qH, _ = engine._build_hours_skill_intensity_matrix()
     qW, _ = engine._build_wage_skill_intensity_matrix()
@@ -883,7 +882,7 @@ def build_inputs_from_footprint_engine(engine: Any) -> MisalignmentInputs:
 
 
 def load_inputs_from_exiobase(data_path: str) -> MisalignmentInputs:
-    """调用既有 FootprintEngine 加载 EXIOBASE，并转换为本脚本输入。"""
+    """通过 FootprintEngine 加载 EXIOBASE 并构造输入。"""
     from .footprint import FootprintEngine
 
     engine = FootprintEngine(data_path)
@@ -893,12 +892,12 @@ def load_inputs_from_exiobase(data_path: str) -> MisalignmentInputs:
 
 
 def _csv_dir_from_output(output_dir: Path) -> Path:
-    """允许传入 `.../3.足迹计算` 或其下 `csv` 子目录。"""
+    """接受结果目录或其 csv 子目录。"""
     return output_dir if output_dir.name == "csv" else output_dir / "csv"
 
 
 def write_outputs(package: Mapping[str, Any], output_dir: Path) -> None:
-    """写出新增 CSV，不覆盖既有主模型输出。"""
+    """将错配指标及核对结果写入 CSV。"""
     csv_dir = _csv_dir_from_output(output_dir)
     csv_dir.mkdir(parents=True, exist_ok=True)
     outputs = {

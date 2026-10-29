@@ -99,12 +99,11 @@ def _network_from_footprint_engine(engine: FootprintEngine) -> NetworkEngine:
 
 
 def run_baseline(footprint_engine: FootprintEngine, output_root: str | Path) -> Dict[str, Any]:
-    """Write baseline tables without loading data or reading reference results.
+    """Compute baseline tables from loaded MRIO matrices and extensions.
 
-    The engine must already contain the MRIO matrices and extensions. Network
-    skill flows retain their intermediate-input definition; country-sector flows
-    retain their final-demand definition. Threshold sensitivity is supplementary
-    and does not replace the total-direct-carbon production locking definition.
+    Skill-level network flows use intermediate inputs; country-sector flows use
+    final demand. Production locking uses total direct carbon, with alternative
+    thresholds reported separately.
     """
     if footprint_engine.mrio is None:
         raise ValueError("run_baseline requires an already loaded FootprintEngine")

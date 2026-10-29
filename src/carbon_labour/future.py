@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""四目标未来分析引擎。
-
-包含路径参数、插值和未来快照逻辑。场景计算依赖本包的
-``policy`` 模块，不读取既有结果文件，也不把劳动工时纳入优化目标。
-"""
+"""未来路径参数、线性插值及 MRIO 情景快照。"""
 
 from __future__ import annotations
 
@@ -150,7 +146,7 @@ TERMINAL_TARGETS: Dict[str, Dict[str, float]] = {
 
 @dataclass(frozen=True)
 class FutureWorld:
-    """一个可审计的路径、年份和运行范围组合。"""
+    """未来情景的路径、年份和运行范围。"""
 
     scope: str
     pathway: str
@@ -163,7 +159,7 @@ def _validate_selection(
     allowed: Sequence[Any],
     label: str,
 ) -> Tuple[Any, ...]:
-    """校验世界索引选择，拒绝范围外值。"""
+    """校验所选路径和年份是否在允许范围内。"""
     normalized = tuple(selected)
     invalid = tuple(value for value in normalized if value not in allowed)
     if invalid:
@@ -223,7 +219,7 @@ def key_worlds(
 
 
 class FutureFootprintSnapshot:
-    """供最终情景引擎复用的未来年份轻量快照。"""
+    """未来年份的 MRIO 矩阵与扩展系数。"""
 
     def __init__(
         self,
@@ -256,10 +252,10 @@ class FutureFootprintSnapshot:
 
 
 class FinalFutureEngine:
-    """基于最终四目标情景引擎构造未来世界并执行精确计算。"""
+    """构建未来路径-年份情景并进行四目标政策评价。"""
 
     def __init__(self, footprint_engine) -> None:
-        """初始化基础精确场景引擎和未来参数状态。"""
+        """初始化基准政策引擎及未来路径参数。"""
         self.footprint_engine = footprint_engine
         self.base_scenario_engine = FinalScenarioEngine(footprint_engine)
         self.base_scenario_engine.compute_baseline()
@@ -454,7 +450,7 @@ class FinalFutureEngine:
         return scenario._ensure_non_negative(wage)
 
     def _build_future_snapshot(self, row: pd.Series) -> FutureFootprintSnapshot:
-        """根据单条参数行构造含次级工时数据的未来快照。"""
+        """根据路径-年份参数构建未来快照及工时数据。"""
         demand = self._apply_future_demand(row)
         carbon = self._apply_future_carbon(row)
         employment = self._apply_future_employment(row)
@@ -494,14 +490,14 @@ class FinalFutureEngine:
         )
 
     def _create_future_scenario_engine(self, row: pd.Series):
-        """为单个未来世界创建最终精确场景引擎。"""
+        """为单个路径-年份创建政策引擎。"""
         scenario = FinalScenarioEngine(self._build_future_snapshot(row))
         scenario.compute_baseline()
         return scenario
 
     @staticmethod
     def _attach_execution_metadata(record: Dict[str, Any]) -> Dict[str, Any]:
-        """显式附加精确状态、surrogate 状态和目标边界。"""
+        """添加计算方式与优化目标的元数据。"""
         record["Future_Engine_Version"] = ENGINE_VERSION
         record["Exact_or_Surrogate"] = EXACT_STATUS
         record["Surrogate_Status"] = SURROGATE_STATUS
@@ -513,7 +509,7 @@ class FinalFutureEngine:
 
     @classmethod
     def _annotate_frame(cls, frame: pd.DataFrame) -> pd.DataFrame:
-        """为结果表逐列写入统一执行状态。"""
+        """为结果表添加运行元数据。"""
         annotated = frame.copy()
         annotated["Future_Engine_Version"] = ENGINE_VERSION
         annotated["Exact_or_Surrogate"] = EXACT_STATUS
@@ -596,7 +592,7 @@ class FinalFutureEngine:
         pathways: Optional[Sequence[str]] = None,
         years: Optional[Sequence[int]] = None,
     ) -> Iterator[Tuple[FutureWorld, Any]]:
-        """逐个生成 12 个关键世界及其最终精确场景引擎。"""
+        """逐个生成 12 个关键路径-年份及其政策引擎。"""
         for world in key_worlds(pathways, years):
             params = self._get_parameter_row(world.pathway, world.year)
             yield world, self._create_future_scenario_engine(params)
@@ -607,7 +603,7 @@ class FinalFutureEngine:
         pathways: Optional[Sequence[str]] = None,
         years: Optional[Sequence[int]] = None,
     ) -> List[Any]:
-        """对关键世界执行调用方提供的精确分析函数。"""
+        """对关键路径-年份执行指定分析函数。"""
         return [
             runner(scenario, world)
             for world, scenario in self.iter_key_world_engines(pathways, years)

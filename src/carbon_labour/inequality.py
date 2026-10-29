@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""不平等公共函数。
-
-本模块是 Eq. (9)、技能碳归属和 Pareto 判定的唯一公共实现。
-"""
+"""技能碳归因、二元 Gini 与 Pareto 非支配判定。"""
 
 from __future__ import annotations
 
@@ -30,7 +27,7 @@ SIGNED_OBJECTIVES = (
 
 @dataclass(frozen=True)
 class SkillCarbonAttribution:
-    """技能碳归属结果及部门级覆盖率审计。"""
+    """技能碳归因结果及部门覆盖率。"""
 
     attributed: np.ndarray
     attributable_by_sector: np.ndarray
@@ -40,7 +37,7 @@ class SkillCarbonAttribution:
 
     @property
     def total_carbon(self) -> float:
-        """返回非负全部碳宇宙。"""
+        """返回非负碳排放总量。"""
         return float(self.attributable_by_sector.sum() + self.unattributed_by_sector.sum())
 
     @property
@@ -50,7 +47,7 @@ class SkillCarbonAttribution:
 
     @property
     def unattributed_carbon(self) -> float:
-        """返回零技能就业部门中保留的未归属碳。"""
+        """返回零技能就业部门的未归属碳。"""
         return float(self.unattributed_by_sector.sum())
 
     @property
@@ -62,7 +59,7 @@ class SkillCarbonAttribution:
 
 @dataclass(frozen=True)
 class BivariateGiniResult:
-    """Eq. (9) 结果与可审计排序轨迹。"""
+    """Eq. (9) 的二元 Gini 及排序明细。"""
 
     value: float
     raw_value: float
@@ -88,11 +85,9 @@ def attribute_carbon_by_skill(
     carbon_by_sector: np.ndarray,
     employment_by_skill_and_sector: np.ndarray,
 ) -> SkillCarbonAttribution:
-    """
-    按部门内技能就业份额归属非负碳，不对零就业部门强制三等分。
+    """按部门内技能就业份额分配非负碳排放。
 
-    负的数值残差不进入排放责任宇宙。EXIOBASE 燃烧 CO2 正式输入
-    为非负值，因此该裁剪只是数值边界保护。
+    碳排放和就业输入中的负值置零；零就业部门的碳排放计入未归属部分。
     """
     carbon = np.clip(np.asarray(carbon_by_sector, dtype=float).reshape(-1), 0.0, None)
     employment = np.clip(np.asarray(employment_by_skill_and_sector, dtype=float), 0.0, None)
@@ -120,7 +115,7 @@ def attribute_carbon_by_skill(
 
 
 def _validated_unit_ids(unit_ids: Sequence[str] | None, size: int) -> list[str]:
-    """构造或校验唯一 Unit_ID，保证排序规则可复现。"""
+    """构造或校验唯一 Unit_ID，用于处理排序并列。"""
     ids = [f"unit_{idx:04d}" for idx in range(size)] if unit_ids is None else [str(v) for v in unit_ids]
     if len(ids) != size:
         raise ValueError("unit_ids 长度必须与观察单元数一致。")
@@ -227,7 +222,7 @@ def normalized_objective_matrix(
     frame: pd.DataFrame,
     objective_columns: Iterable[str] = SIGNED_OBJECTIVES,
 ) -> np.ndarray:
-    """在给定候选宇宙内将四目标线性映射到 [0, 1]。"""
+    """在给定候选集内将四目标线性映射到 [0, 1]。"""
     columns = list(objective_columns)
     values = frame[columns].to_numpy(dtype=float)
     lower = np.min(values, axis=0)
