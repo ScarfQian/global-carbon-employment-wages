@@ -1334,7 +1334,7 @@ class FootprintEngine:
         """
         计算每个国家的技能-碳错配指数
 
-        方法：按部门碳强度排序，将部门分为高碳/中碳/低碳三类，
+        方法：按部门直接碳排放量排序，将部门分为高碳/中碳/低碳三类，
         然后分析各类别中的技能结构
 
         公式: Mismatch_{r,s} = (高碳部门就业占比) / (总就业占比)
@@ -1346,12 +1346,12 @@ class FootprintEngine:
         print("\n" + "=" * 70)
         print("步骤5: 计算技能-碳错配指数（按国家）")
         print("=" * 70)
-        print("  方法：按部门碳强度分类，计算高碳部门的技能集中度")
+        print("  方法：按部门直接碳排放量分类，计算高碳部门的技能集中度")
 
         emp_data = self.employment['data']  # (6, 9800) 就业系数
         categories = self.employment['categories']
-        co2_coef = self.co2_emissions  # (9800,) CO2系数 (kg/EUR)
-        x = self.x  # (9800,) 总产出 (EUR)
+        co2_coef = self.co2_emissions  # (9800,) kg CO2 / M.EUR
+        x = self.x  # (9800,) 总产出 (M.EUR)
 
         skill_map = {}
         for i, cat in enumerate(categories):
@@ -1365,17 +1365,16 @@ class FootprintEngine:
                 continue
             skill_map[i] = skill
 
-        # 计算每个部门的碳强度（CO2/产出）
+        # 部门直接碳排放量：排放系数乘以总产出。
         carbon_intensity = co2_coef * x  # (9800,) kg CO2
 
-        # 计算全球部门碳强度排序
-        # 按碳强度将部门分为高碳(前20%)、中碳(中间60%)、低碳(后20%)
+        # 按正直接碳排放量划分高碳(前20%)、中碳(中间60%)、低碳(后20%)。
         threshold_high = np.percentile(carbon_intensity[carbon_intensity > 0], 80)
         threshold_low = np.percentile(carbon_intensity[carbon_intensity > 0], 20)
 
-        print(f"\n  部门碳强度阈值:")
-        print(f"    - 高碳部门: > {threshold_high:.2f} kg/EUR")
-        print(f"    - 低碳部门: < {threshold_low:.2f} kg/EUR")
+        print(f"\n  部门直接碳排放量阈值:")
+        print(f"    - 高碳部门: > {threshold_high:.2f} kg CO2")
+        print(f"    - 低碳部门: < {threshold_low:.2f} kg CO2")
 
         results = []
 
