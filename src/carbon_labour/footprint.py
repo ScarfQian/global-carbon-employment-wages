@@ -1,15 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-足迹计算引擎 - 按国家×技能×性别汇总
-
-功能：
-1. 读取EXIOBASE 3.9数据
-2. 计算Leontief逆矩阵
-3. 计算碳足迹、就业足迹、工资足迹（按国家×技能×性别）
-4. 计算技能-碳错配指数
-5. 生成不平等指标
-"""
+"""基于 EXIOBASE 的碳、就业、工资和工时足迹核算。"""
 
 import pymrio
 import numpy as np
@@ -620,9 +611,7 @@ class FootprintEngine:
         """
         按最终需求国家计算碳足迹。
 
-        正确方法：
-        1. 先计算完整足迹向量 `(n_fd,)`
-        2. 再按 `Y` 列索引的国家层级汇总
+        先计算各最终需求列的足迹，再按 Y 列索引中的国家汇总。
 
         Returns:
             DataFrame: 国家碳足迹结果
@@ -1499,7 +1488,7 @@ class FootprintEngine:
 
         total_employment = sum(employment_by_skill.values())
 
-        # 使用部门内技能就业份额分配 CO2，避免 employment coefficient × carbon coefficient × output 的非严谨乘积。
+        # 按部门内技能就业份额分配 CO2。
         co2_by_skill = {'Low': 0, 'Medium': 0, 'High': 0}
         emp_by_skill_sector = {'Low': np.zeros_like(self.x, dtype=float), 'Medium': np.zeros_like(self.x, dtype=float), 'High': np.zeros_like(self.x, dtype=float)}
 

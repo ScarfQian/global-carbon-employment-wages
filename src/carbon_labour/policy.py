@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""四目标情景引擎。
-
-复用基准引擎的物理冲击链，使用最终不平等定义、
-有符号四目标和可审计的精确评价接口。劳动小时仍为次级诊断。
-"""
+"""基于 MRIO 核算的四目标政策评价与不确定性分析。"""
 
 from __future__ import annotations
 
@@ -48,7 +44,7 @@ SIGNED_OBJECTIVES = (
 
 
 class FinalScenarioEngine(_BASE.ScenarioEngine):
-    """保留原物理冲击链、使用最终不平等规范的四目标引擎。"""
+    """基于 MRIO 核算的四目标政策评价。"""
 
     def __init__(self, footprint_engine):
         super().__init__(footprint_engine)
@@ -118,7 +114,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         carbon_values: np.ndarray,
         unit_ids: Optional[Sequence[str]] = None,
     ) -> float:
-        """调用公共 Eq. (9) 实现，不在 ScenarioEngine 内复制公式。"""
+        """计算 Eq. (9) 定义的二元 Gini。"""
         return _INEQ.exact_bivariate_gini(
             resource_values,
             carbon_values,
@@ -126,7 +122,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         ).value
 
     def _policy_hours_skill_intensity(self, employment_skill_matrix: np.ndarray) -> np.ndarray:
-        """用 baseline hours-per-worker 保持规则生成政策工时强度。"""
+        """按基准人均工时计算政策情景的工时系数。"""
         omega = np.divide(
             self.hours_skill_matrix,
             self.employment_skill_matrix,
@@ -141,7 +137,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         employment_matrix: np.ndarray,
         wage_matrix: np.ndarray,
     ) -> Dict:
-        """在物理 outcomes 中附加工时次级诊断所需数组。"""
+        """在核算结果中添加工时数组。"""
         output = np.asarray(outcomes["Output_By_Sector"], dtype=float).reshape(-1)
         employment_skill = self._aggregate_skill_matrix(employment_matrix, self.employment_skill_rows)
         wage_skill = self._aggregate_skill_matrix(wage_matrix, self.wage_skill_rows)
@@ -166,7 +162,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         employment_data: Optional[np.ndarray] = None,
         wage_data: Optional[np.ndarray] = None,
     ) -> Dict:
-        """调用基准引擎的全量精确 MRIO 计算，并附加工时数组。"""
+        """计算完整 MRIO 结果及工时数组。"""
         employment_matrix = self.employment["data"] if employment_data is None else np.asarray(employment_data, dtype=float)
         wage_matrix = self.wage["data"] if wage_data is None else np.asarray(wage_data, dtype=float)
         outcomes = super().compute_outcomes(
@@ -184,11 +180,9 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         employment_data: np.ndarray,
         wage_data: np.ndarray,
     ) -> Dict:
-        """
-        通过 ``L @ sum(Y, axis=1)`` 计算与全量矩阵完全相同的产出总量。
+        """通过 ``L @ sum(Y, axis=1)`` 计算与完整矩阵核算等价的产出总量。
 
-        该路径仅省略不进入主目标的 bilateral diagnostic arrays，
-        不使用拟合、代理或插值，因此仍是 exact engine evaluation。
+        返回政策目标及工时指标所需的部门结果，省略双边诊断数组。
         """
         y_matrix = np.asarray(Y, dtype=float)
         co2 = np.asarray(co2_emissions, dtype=float).reshape(-1)
@@ -226,7 +220,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         wage_sector: np.ndarray,
         carbon_sector: np.ndarray,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, list[str]]:
-        """将部门数组聚合为 49 x 3 country-skill cells。"""
+        """按地区与三类技能聚合部门数组。"""
         n_regions = len(self.country_slices)
         employment = np.zeros((n_regions, len(SKILLS)), dtype=float)
         wage = np.zeros_like(employment)
@@ -300,7 +294,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         }
 
     def _compute_scenario_inequality_summary(self, outcomes: Dict) -> Dict[str, float]:
-        """计算最终 primary index、机制诊断和 supplementary sensitivity indices。"""
+        """计算政策不平等指标、机制指标及敏感性指标。"""
         carbon_by_sector = np.asarray(outcomes["Carbon_By_Producer"], dtype=float)
         output_by_sector = np.asarray(outcomes["Output_By_Sector"], dtype=float)
         employment_sector = np.asarray(outcomes["Employment_By_Skill_And_Sector"], dtype=float)
@@ -441,7 +435,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         return float(numerator / denominator) if denominator > 0.0 else np.nan
 
     def _attach_hour_record_fields(self, record: Dict, outcomes: Mapping[str, object]) -> Dict:
-        """将 labour-hour secondary diagnostics 附加到扁平政策记录。"""
+        """在政策记录中添加工时指标。"""
         hours_total = float(outcomes["Hours_Total"])
         employment_total = float(outcomes["Employment_Total"])
         wage_total = float(outcomes["Wage_Total"])
@@ -481,7 +475,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         outcomes: Dict,
         metadata: Optional[Dict] = None,
     ) -> Dict:
-        """构建包含主四目标和次级工时诊断的精确记录。"""
+        """整理四目标及工时指标的政策记录。"""
         record = super()._build_result_record(scenario_name, outcomes, metadata=metadata)
         record["Primary_Inequality_Specification"] = SPECIFICATION_ID
         record["Engine_Version"] = ENGINE_VERSION
@@ -490,7 +484,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         return self._attach_hour_record_fields(record, outcomes)
 
     def _extract_transition_metrics(self, result: Dict) -> Dict[str, float]:
-        """保留负改善的 signed 四目标，clipped 字段仅作补充诊断。"""
+        """计算四项目标的变化值；负值表示恶化，截断值另列。"""
         carbon_signed = -float(result["Carbon_Change"])
         employment_signed = float(result["Employment_Change"])
         wage_signed = float(result["Wage_Change"])
@@ -521,7 +515,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         params: Mapping[str, float],
         uncertainty: Optional[Mapping[str, float]] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """严格复用 S5 冲击顺序，返回 Y、CO2、employment 和 wage 数组。"""
+        """按 S5 的政策顺序计算最终需求、碳、就业和工资数组。"""
         u = {
             "theta_tax": 0.8,
             "epsilon_highcarbon": -0.5,
@@ -569,7 +563,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         uncertainty: Optional[Mapping[str, float]] = None,
         policy_id: Optional[str] = None,
     ) -> Dict[str, float]:
-        """使用完整 Y 冲击链和 exact aggregate algebra 评价单个政策向量。"""
+        """施加最终需求冲击，并通过聚合核算评价政策向量。"""
         if not self.baseline:
             self.compute_baseline()
         normalized = {
@@ -613,7 +607,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         return record
 
     def evaluate_policy_vector_exact(self, vector: np.ndarray, policy_id: Optional[str] = None) -> Dict[str, float]:
-        """将四维决策向量转换为参数并精确评价。"""
+        """将四维决策向量转换为政策参数并评价。"""
         return self.evaluate_policy_exact(
             self._vector_to_policy_params(np.asarray(vector, dtype=float)),
             policy_id=policy_id,
@@ -625,7 +619,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
         random_seed: int = 42,
         package_strengths: Optional[Mapping[str, float]] = None,
     ) -> pd.DataFrame:
-        """对 S5 执行 8 参数精确 Monte Carlo，保留 signed 改善。"""
+        """对 S5 的八个参数进行 Monte Carlo 分析。"""
         strengths = {
             "tax_rate": 100.0,
             "renewable_share": 0.60,
@@ -728,7 +722,7 @@ class FinalScenarioEngine(_BASE.ScenarioEngine):
 # 四目标 NSGA-III 全候选记录
 
 class _RecordedFinalNSGA3Problem(ElementwiseProblem):
-    """记录每个被 exact engine 评价的四维政策向量。"""
+    """记录评价过的四维政策向量及其结果。"""
 
     def __init__(self, engine: FinalScenarioEngine, seed: int, pop_size: int):
         self.engine = engine
@@ -760,7 +754,7 @@ def run_nsga3_seed_exact(
     generations: int = 30,
     reference_partitions: int = 4,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """运行单种子 signed four-objective NSGA-III，返回全候选与前沿。"""
+    """运行单种子四目标 NSGA-III，返回全部候选与非支配前沿。"""
     if NSGA3 is None or minimize is None or get_reference_directions is None:
         raise ImportError("当前环境缺少 pymoo，无法执行正式 NSGA-III。")
     if not engine.baseline:

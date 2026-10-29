@@ -19,19 +19,19 @@ METHODS: Tuple[Tuple[str, str], ...] = (
 
 
 def _safe_share(values: pd.Series, total: float) -> pd.Series:
-    """安全份额计算。"""
+    """计算份额；总量为零时返回 NaN。"""
     return values / total if total > 0 else pd.Series(np.nan, index=values.index, dtype=float)
 
 
 def _ratio(num: pd.Series, den: pd.Series) -> pd.Series:
-    """安全 ratio 计算，零分母返回 NaN。"""
+    """计算比值；零分母返回 NaN。"""
     out = np.full(len(num), np.nan, dtype=float)
     np.divide(num.to_numpy(dtype=float), den.to_numpy(dtype=float), out=out, where=den.to_numpy(dtype=float) > 0)
     return pd.Series(out, index=num.index)
 
 
 def _allocate(carbon: np.ndarray, weights: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """按技能权重份额分配 sector carbon，并返回未归属碳。"""
+    """按技能权重份额分配部门碳排放，并返回未归属碳。"""
     carbon_1d = np.asarray(carbon, dtype=float).reshape(-1)
     weight_total = weights.sum(axis=0)
     alpha = np.divide(weights, weight_total.reshape(1, -1), out=np.zeros_like(weights, dtype=float), where=weight_total.reshape(1, -1) > 0)
@@ -48,7 +48,7 @@ def _region_skill_table(
     hours: np.ndarray,
     wage: np.ndarray,
 ) -> pd.DataFrame:
-    """生成一种 attribution method 下的 region-skill ratio 表。"""
+    """生成给定归因方式下的地区-技能份额比表。"""
     rows: List[Dict[str, Any]] = []
     region_index = pd.Index(regions)
     for method, weight_name in METHODS:
@@ -95,7 +95,7 @@ def _region_skill_table(
 
 
 def compute_attribution_robustness(inputs: Any) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """计算 attribution coverage、robustness 明细和 summary。"""
+    """计算各归因方式的覆盖率、稳健性明细及汇总。"""
     qE = np.asarray(inputs.qE, dtype=float)
     qH = np.asarray(inputs.qH, dtype=float)
     qW = np.asarray(inputs.qW, dtype=float)
@@ -177,7 +177,7 @@ def compute_attribution_robustness(inputs: Any) -> Tuple[pd.DataFrame, pd.DataFr
 
 
 def write_outputs(coverage: pd.DataFrame, robustness: pd.DataFrame, summary: pd.DataFrame, project_root: Path) -> None:
-    """写出 3.足迹计算 与 Supplementary 两套结果。"""
+    """将覆盖率及稳健性结果写入国家-技能和补充分析目录。"""
     csv3 = project_root / "01_Country_Skill" / "csv"
     supp = project_root / "03_Network_And_Lockin" / "csv"
     csv3.mkdir(parents=True, exist_ok=True)

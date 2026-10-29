@@ -16,7 +16,7 @@ SKILLS: Tuple[str, str, str] = ("Low", "Medium", "High")
 
 @dataclass
 class WageAccount:
-    """一个可审计的工资账户来源。"""
+    """工资账户及其来源。"""
 
     source_module: str
     source_file: str
@@ -40,7 +40,7 @@ def _interpret_account(account: WageAccount, descriptive_total: float, policy_to
 
 
 def compute_wage_reconciliation(accounts: Sequence[WageAccount]) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """生成工资账户 reconciliation 表和口径审计表。"""
+    """生成工资账户对照及口径核对表。"""
     if not accounts:
         raise ValueError("At least one wage account is required")
     descriptive_candidates = [a for a in accounts if "descriptive" in a.source_module.lower() and not a.skill_resolved]
@@ -93,7 +93,7 @@ def compute_wage_reconciliation(accounts: Sequence[WageAccount]) -> Tuple[pd.Dat
 
 
 def write_outputs(reconciliation: pd.DataFrame, audit: pd.DataFrame, output_dir: Path) -> None:
-    """写出工资口径 reconciliation CSV。"""
+    """将工资口径对照结果写入 CSV。"""
     csv_dir = output_dir if output_dir.name == "csv" else output_dir / "csv"
     csv_dir.mkdir(parents=True, exist_ok=True)
     reconciliation.to_csv(csv_dir / "wage_baseline_reconciliation.csv", index=False)

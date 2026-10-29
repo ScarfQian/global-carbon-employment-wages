@@ -1,14 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-情景模拟引擎
-
-功能：
-1. 统一基准值与情景值的 CF / EF / WF 口径
-2. 构建 6 个核心情景（S0-S5）
-3. 提供 Monte Carlo、Sobol、Pareto、情景矩阵分析
-4. 逐情景重算扩展版三重不平等摘要指标（补充 transmission 与 coupling）
-"""
+"""S0-S5 政策冲击、MRIO 情景核算与分配指标。"""
 
 from __future__ import annotations
 
@@ -346,7 +338,7 @@ class ScenarioEngine:
 
     @staticmethod
     def _normalize_weights(values: np.ndarray) -> np.ndarray:
-        """归一化权重，避免全零。"""
+        """归一化权重；总和非正时采用等权重。"""
         total = float(values.sum())
         if total <= 0:
             return np.full_like(values, 1.0 / len(values), dtype=float)
@@ -365,7 +357,7 @@ class ScenarioEngine:
 
     @staticmethod
     def _scale_positive_final_demand(matrix: np.ndarray, row_mask: np.ndarray, factor) -> None:
-        """仅缩放正的最终需求单元，避免负库存/调整项被错误回拉。"""
+        """缩放正的最终需求单元，负库存及调整项保持原值。"""
         row_indices = np.where(row_mask)[0]
         if row_indices.size == 0:
             return
@@ -1645,7 +1637,7 @@ class ScenarioEngine:
         max_shift_share: float = 0.30,
         max_training_level: float = 0.60,
     ) -> pd.DataFrame:
-        """对 S1-S5 执行强度扫描，避免只依赖单一中心参数。"""
+        """扫描 S1-S5 的政策强度。"""
         if not self.baseline:
             self.compute_baseline()
         if int(scan_points) < 2:

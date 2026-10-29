@@ -58,7 +58,7 @@ def write_csv(frame: pd.DataFrame, path: Path, sort_by: Optional[Sequence[str]] 
 
 
 def stamp(frame: pd.DataFrame, source: str) -> pd.DataFrame:
-    """为结果表补充统一审计元数据。"""
+    """为结果表添加来源和版本信息。"""
     result = frame.copy()
     result["Run_Version"] = RUN_VERSION
     result["Created_At"] = CREATED_AT
@@ -71,7 +71,7 @@ def stamp(frame: pd.DataFrame, source: str) -> pd.DataFrame:
 
 
 def nondominated_mask(values: np.ndarray, tolerance: float = 0.0) -> np.ndarray:
-    """按四目标最大化和给定数值容差独立判定非支配集合。"""
+    """按四目标最大化及给定容差筛选非支配解。"""
     matrix = np.asarray(values, dtype=float)
     if matrix.ndim != 2 or matrix.shape[1] != 4 or not np.isfinite(matrix).all():
         raise ValueError("Pareto 输入必须是有限的 n x 4 矩阵。")
@@ -86,7 +86,7 @@ def nondominated_mask(values: np.ndarray, tolerance: float = 0.0) -> np.ndarray:
 
 
 def normalized_matrix(frame: pd.DataFrame, columns: Sequence[str]) -> np.ndarray:
-    """对指定列做稳定 min-max normalization。"""
+    """按指定列的最小值和最大值归一化。"""
     values = frame[list(columns)].to_numpy(dtype=float)
     lower = np.min(values, axis=0)
     span = np.ptp(values, axis=0)
@@ -95,7 +95,7 @@ def normalized_matrix(frame: pd.DataFrame, columns: Sequence[str]) -> np.ndarray
 
 
 def build_frontier_tolerance_sensitivity(candidates: pd.DataFrame, formal_frontier: pd.DataFrame) -> pd.DataFrame:
-    """对同一去重候选宇宙重算 strict 与三个容差前沿。"""
+    """在同一去重候选集上比较零容差与三种容差的前沿。"""
     unique = candidates.drop_duplicates(subset=list(DECISION_COLUMNS), keep="first").reset_index(drop=True)
     values = unique[list(SIGNED_OBJECTIVES)].to_numpy(dtype=float)
     formal_ids = set(formal_frontier["Policy_ID"].astype(str))
@@ -122,7 +122,7 @@ def build_frontier_tolerance_sensitivity(candidates: pd.DataFrame, formal_fronti
 
 
 def connected_clusters(matrix: np.ndarray, tolerance: float) -> list[list[int]]:
-    """用半径邻接关系构建 near-duplicate connected components。"""
+    """将给定半径内的候选连接并分组。"""
     if len(matrix) == 0:
         return []
     pairs = cKDTree(np.asarray(matrix, dtype=float)).query_pairs(r=float(tolerance), output_type="set")
@@ -156,7 +156,7 @@ def exact_duplicate_groups(frame: pd.DataFrame, columns: Sequence[str]) -> list[
 
 
 def cluster_rows(frame: pd.DataFrame, matrix: np.ndarray, groups: Sequence[Sequence[int]], universe: str, vector_type: str, tolerance: float) -> list[Dict[str, object]]:
-    """把重复分组转为可审计 cluster 表。"""
+    """将重复候选分组整理为表格。"""
     rows = []
     for cluster_index, members in enumerate(groups, start=1):
         member_list = list(map(int, members))
@@ -178,7 +178,7 @@ def cluster_rows(frame: pd.DataFrame, matrix: np.ndarray, groups: Sequence[Seque
 
 
 def build_duplicate_audit(candidates: pd.DataFrame, frontier: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """审计 all candidates 与 final frontier 的 exact/near duplicates。"""
+    """统计候选集与前沿中完全重复和近似重复的解。"""
     audit_rows, all_cluster_rows = [], []
     for universe, frame in (("all_6300_candidates", candidates.reset_index(drop=True)), ("strict_841_frontier", frontier.reset_index(drop=True))):
         for vector_type, columns in (("decision", DECISION_COLUMNS), ("objective", SIGNED_OBJECTIVES)):
@@ -210,7 +210,7 @@ def build_duplicate_audit(candidates: pd.DataFrame, frontier: pd.DataFrame) -> t
 
 
 def build_seed_convergence(candidates: pd.DataFrame, frontier: pd.DataFrame) -> pd.DataFrame:
-    """展开每个 seed 的实际评价、贡献、范围与收敛量。"""
+    """汇总各随机种子的评价次数、前沿贡献和收敛指标。"""
     existing = pd.read_csv(CURRENT_READ_DIR / "current_nsga3_convergence_audit.csv")
     rows = []
     for _, audit in existing.iterrows():
@@ -239,7 +239,7 @@ def build_seed_convergence(candidates: pd.DataFrame, frontier: pd.DataFrame) -> 
 
 
 def stable_pick(frame: pd.DataFrame, score: pd.Series, maximize: bool) -> pd.Series:
-    """按 score 与固定 lexicographic tie-break 选择一行。"""
+    """按得分选择一行，并以固定字典序处理并列。"""
     work = frame.copy()
     work["__score"] = score.to_numpy(dtype=float)
     columns = ["__score", *DECISION_COLUMNS, "Policy_ID"]
@@ -249,7 +249,7 @@ def stable_pick(frame: pd.DataFrame, score: pd.Series, maximize: bool) -> pd.Ser
 
 
 def select_representatives(frontier: pd.DataFrame) -> pd.DataFrame:
-    """按附件规则确定性选择代表政策。"""
+    """选择单目标领先、平衡、净收益最高及低政策强度的代表解。"""
     normalized = normalized_matrix(frontier, SIGNED_OBJECTIVES)
     ideal_distance = np.linalg.norm(1.0 - normalized, axis=1)
     joint = frontier.loc[(frontier[list(SIGNED_OBJECTIVES)] > 0.0).all(axis=1)].copy()
@@ -284,7 +284,7 @@ def select_representatives(frontier: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_representatives(frontier: pd.DataFrame) -> pd.DataFrame:
-    """写出可复现代表政策点。"""
+    """汇总代表政策的参数及结果。"""
     output = select_representatives(frontier)
     write_csv(output, FRONTIER_DIR / "current_frontier_representative_points.csv")
     return output
@@ -353,7 +353,7 @@ Policy outcomes are evaluated across the four objectives.
 
 
 def build_core_scenario_outcomes(engine) -> Dict[str, Mapping[str, object]]:
-    """只运行 S0-S5 exact state algebra，返回固定 mask 所需部门数组。"""
+    """计算 S0-S5 部门结果，供固定高碳部门集合的比较使用。"""
     if not engine.baseline:
         engine.compute_baseline()
     base_employment = np.asarray(engine.employment["data"], dtype=float)
@@ -410,7 +410,7 @@ def build_core_scenario_outcomes(engine) -> Dict[str, Mapping[str, object]]:
 
 
 def sector_identifiers(engine, n_sectors: int) -> tuple[list[str], list[str]]:
-    """构造 region::product 稳定 ID 和可读 product label。"""
+    """构造 region::product 标识及产品标签。"""
     labels = list(getattr(engine, "row_labels", []))
     if len(labels) != n_sectors:
         labels = [f"sector_{index}" for index in range(n_sectors)]
@@ -426,7 +426,7 @@ def sector_identifiers(engine, n_sectors: int) -> tuple[list[str], list[str]]:
 
 
 def build_fixed_hour_lock(engine) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """用 S0 固定 mask 重算 S0-S5 skill-hour lock。"""
+    """固定 S0 高碳部门集合，比较 S0-S5 各技能的工时锁定率。"""
     outcomes = build_core_scenario_outcomes(engine)
     baseline = outcomes["S0_baseline"]
     baseline_carbon = np.clip(np.asarray(baseline["Carbon_By_Producer"], dtype=float), 0.0, None)
@@ -523,7 +523,7 @@ def build_fixed_hour_lock(engine) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
 
 
 def build_future_scope_inventory() -> pd.DataFrame:
-    """列出每个 world、scope、seed 的评价量与前沿量。"""
+    """汇总各路径-年份、计算范围和随机种子的评价次数及前沿规模。"""
     all_candidates = pd.read_csv(FUTURE_READ_DIR / "future_nsga3_all_candidates_final.csv")
     frontiers = pd.read_csv(FUTURE_READ_DIR / "future_nsga3_frontiers_final.csv")
     group_columns = ["Pathway", "Year", "Future_NSGA_Scope", "Seed", "NSGA3_Population_Size", "NSGA3_Generations"]
@@ -547,7 +547,7 @@ def build_future_scope_inventory() -> pd.DataFrame:
 
 
 def select_future_authoritative_scopes() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """每个 key world 选择最高代数的 authoritative frontier。"""
+    """为每个路径-年份选择代数最高的前沿，同代优先使用多种子联合前沿。"""
     frontiers = pd.read_csv(FUTURE_READ_DIR / "future_nsga3_frontiers_final.csv")
     convergence = pd.read_csv(FUTURE_READ_DIR / "future_nsga3_selected_world_convergence.csv")
     scope_summary = frontiers.groupby(["Pathway", "Year", "Future_NSGA_Scope"], sort=False).agg(
@@ -597,7 +597,7 @@ def select_future_authoritative_scopes() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def build_future_policy_bands(selected_frontiers: pd.DataFrame) -> pd.DataFrame:
-    """按 key world 重算 non-dominated solution policy quantiles。"""
+    """按路径-年份计算非支配解的政策参数分位数。"""
     parameter_map = {
         "tax_rate": ("Carbon_Price", 50.0, 150.0),
         "renewable_share": ("Renewable_Transition", 0.30, 0.90),
@@ -625,7 +625,7 @@ def build_future_policy_bands(selected_frontiers: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_future_probability_summary() -> pd.DataFrame:
-    """整合 12-world signed probabilities 与四目标中位数。"""
+    """汇总 12 个路径-年份的改善概率及四目标中位数。"""
     future_root = FUTURE_READ_DIR
     probability = pd.read_csv(future_root / "future_monte_carlo_signed_probability_12worlds_final.csv")
     summary = pd.read_csv(future_root / "future_monte_carlo_summary_12worlds_final.csv")
@@ -651,7 +651,7 @@ def build_future_probability_summary() -> pd.DataFrame:
 
 
 def jensen_shannon_divergence(left: np.ndarray, right: np.ndarray) -> float:
-    """计算两个非负 share vectors 的 Jensen-Shannon divergence。"""
+    """计算两个非负份额向量的 Jensen-Shannon 散度。"""
     p = np.clip(np.asarray(left, dtype=float), 0.0, None)
     q = np.clip(np.asarray(right, dtype=float), 0.0, None)
     if p.sum() <= 0.0 or q.sum() <= 0.0:
@@ -666,7 +666,7 @@ def jensen_shannon_divergence(left: np.ndarray, right: np.ndarray) -> float:
 
 
 def build_network_overlap_jsd() -> pd.DataFrame:
-    """由现有 bilateral transfer tables 补充 network overlap JSD 证据。"""
+    """从双边转移表计算网络分布的 Jensen-Shannon 散度。"""
     network_dir = FINAL_ROOT / "02_Network" / "csv"
     metric_columns = {
         "carbon": "Carbon_Transfer",
